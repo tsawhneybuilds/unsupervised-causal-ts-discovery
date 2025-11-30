@@ -4,14 +4,15 @@
         "graph_to_data": {
             "MonetaryShock": "MonetaryShock_RR",
             "PolicyRate": "FEDFUNDS",
-            "InflationExpectations": "t_bill_inflationexpectations",
-            "CreditConditions": "baa_aaa_creditconditions",
+            "InflationExpectations": "infl_exp",
+            "CreditConditions": "nfci_creditconditions",
             "AssetPrices": "assetprice_sp500_logdiff",
             "ExchangeRate": "RNUSBIS_logdiff",
             "Investment": "Investment_logdiff",
-            "Consumption": "Consumption_PCE_logdiff",
+            "Consumption": "Consumption_real_logdiff",
             "Output": "Output_IP_logdiff",
-            "NetExports": "NX GDP RATIO PCT"
+            "NetExports": "NX GDP RATIO PCT",
+            "Inflation": "inflation_pce_yoy"
         }
     },
     "housing": {

@@ -31,7 +31,7 @@ def select_model(
                 model = SVAR_FCI(alpha=alpha, max_lag=p, max_cond_size=max_cond, verbose=False)
                 model.fit(X, var_names=var_names)
                 
-                score = icf_bic_score(model.Z_, model.graph_)
+                score = icf_bic_score(model.Z_, model.graph_, debug=verbose)
                 
                 if verbose:
                     print(f"  BIC: {score['bic']:.4f} (df={score['df']})")

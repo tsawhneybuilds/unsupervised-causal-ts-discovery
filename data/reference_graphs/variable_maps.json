@@ -18,11 +18,12 @@
     "housing": {
         "description": "Mapping from friendly graph names to data column names",
         "graph_to_data": {
-            "MortgageRates": "MORTGAGE30US",
-            "CreditSupply": "CreditSupply_logdiff",
-            "HousePrices": "HousePrice_logdiff",
-            "Consumption": "Consumption_logdiff",
-            "Output": "Output_logdiff"
+            "MortgageRates": "mortgage_rate",
+            "CreditSupply": "credit_logdiff",
+            "HousePrices": "houseprices_logdiff",
+            "Consumption": "cons_logdiff",
+            "Output": "output_logdiff",
+            "PolicyRate": "policyrate"
         }
     }
 }

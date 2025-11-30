@@ -353,6 +353,9 @@ Examples:
     data_vars = [v for v in var_names if v in reference_graph.nodes]
     data_filtered = df[data_vars].values
     
+    print(f"Data for model selection: {data_filtered.shape[0]} samples, {len(data_vars)} variables")
+    print(f"Variables: {data_vars}")
+    
     # Parse grid arguments
     alpha_grid = np.array([float(x.strip()) for x in args.alpha_grid.split(',')])
     lag_grid = [int(x.strip()) for x in args.lag_grid.split(',')]

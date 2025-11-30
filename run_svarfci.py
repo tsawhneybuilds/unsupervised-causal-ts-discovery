@@ -7,8 +7,8 @@ def main():
     # Create output directory if it doesn't exist
     output_dir = "data/outputs"
     os.makedirs(output_dir, exist_ok=True)
-    print("Loading data from data/logdiffmonetaryshock.csv...")
-    df = pd.read_csv("data/logdiffmonetaryshock.csv")
+    print("Loading data from data/final_monetaryshock_clean.csv...")
+    df = pd.read_csv("data/final_monetaryshock_clean.csv")
     
     # Preprocessing
     if "date" in df.columns:
@@ -93,6 +93,7 @@ def main():
             
             print("\nGenerating simplified variable-level visualization...")
             plot_simplified_pag(G, edges_for_plot, var_names)
+            
         except Exception as e:
             print(f"Visualization failed: {e}")
             import traceback
@@ -157,7 +158,17 @@ def plot_dynamic_pag(G, edges):
         "baa_aaa_creditconditions": "#E1BEE7", # Light purple
         "assetprice_sp500": "#FFECB3",         # Light yellow
         "RNUSBIS": "#FFCCBC",                  # Light coral
-        "t_bill_inflationexpectations": "#B2DFDB" # Light teal
+        "t_bill_inflationexpectations": "#B2DFDB", # Light teal
+        # New variables
+        "Consumption_PCE_logdiff": "#C8E6C9",
+        "Output_IP_logdiff": "#FFD699",
+        "assetprice_sp500_logdiff": "#FFECB3",
+        "RNUSBIS_logdiff": "#FFCCBC",
+        "NETEXP_m": "#D7CCC8",
+        "FEDFUNDS": "#F0F4C3",
+        "Investment_m": "#CFD8DC",
+        "Investment_logdiff": "#CFD8DC",
+        "NX GDP RATIO PCT": "#D7CCC8"
     }
     
     # Draw Nodes with larger, clearer circles
@@ -184,6 +195,17 @@ def plot_dynamic_pag(G, edges):
         clean_name = clean_name.replace("assetprice_sp500", "Asset Price\nS&P500")
         clean_name = clean_name.replace("baa_aaa_creditconditions", "Credit\nConditions")
         clean_name = clean_name.replace("RNUSBIS", "Interest\nRate")
+        
+        # New variables cleaning
+        clean_name = clean_name.replace("Consumption_PCE_logdiff", "Consumption\nPCE")
+        clean_name = clean_name.replace("Output_IP_logdiff", "Output\nIP")
+        clean_name = clean_name.replace("assetprice_sp500_logdiff", "Asset Price\nS&P500")
+        clean_name = clean_name.replace("RNUSBIS_logdiff", "Interest\nRate")
+        clean_name = clean_name.replace("NETEXP_m", "Net\nExports")
+        clean_name = clean_name.replace("FEDFUNDS", "Fed\nFunds")
+        clean_name = clean_name.replace("Investment_m", "Investment")
+        clean_name = clean_name.replace("Investment_logdiff", "Investment")
+        clean_name = clean_name.replace("NX GDP RATIO PCT", "Net Exports\n(GDP Ratio)")
         
         # Draw label inside circle
         ax.text(x, y, clean_name, ha='center', va='center', 
@@ -254,72 +276,101 @@ def plot_dynamic_pag(G, edges):
             fontsize=18, weight='bold', color='#2C3E50')
     
     plt.tight_layout()
-    output_path = "data/outputs/logdiff-monetary-shock-pag-svarfci.png"
+    output_path = "data/outputs/final-monetary-shock-pag-svarfci.png"
     plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
     print(f"Graph saved to {output_path}")
 
 def plot_simplified_pag(G, edges, var_names):
     """
-    Create a simplified graph showing only variable-level connections.
-    Aggregates edges that connect to lag 0 (present time) and excludes self-loops.
-    Uses a horizontal flow layout similar to the Housing Wealth example.
+    Summary graph following specific collapsing rules:
+    1. Ignore self-loops.
+    2. Aggregate adjacencies across time.
+    3. A->B if tail at A, arrow at B, and NO arrow at A in any lag.
+    4. A-B otherwise (if adjacent).
     """
     import matplotlib.pyplot as plt
     from matplotlib.patches import Circle, FancyArrowPatch
     from svar_fci.graph import NULL, CIRCLE, ARROW, TAIL
     
-    # Extract variable names (base names without lag suffix)
-    var_set = set(var_names)
-    
-    # Build simplified edge list: aggregate edges that connect to lag 0
-    simplified_edges = {}  # (source_var, target_var) -> (mark_source, mark_target)
+    # 1. Group edges by variable pair
+    pair_edges = {} # tuple(sorted(u_var, v_var)) -> list of (mark_u, mark_v)
     
     for u, v, m_u, m_v in edges:
-        # Parse node labels
         u_parts = u.split("_lag")
         v_parts = v.split("_lag")
+        if len(u_parts) < 2 or len(v_parts) < 2: continue
         
-        if len(u_parts) < 2 or len(v_parts) < 2:
+        u_var = "_".join(u_parts[:-1])
+        v_var = "_".join(v_parts[:-1])
+        
+        # Step 1: Ignore self-lags
+        if u_var == v_var:
             continue
             
-        u_var = "_".join(u_parts[:-1])
-        u_lag = int(u_parts[-1])
-        v_var = "_".join(v_parts[:-1])
-        v_lag = int(v_parts[-1])
-        
-        # Only consider edges that connect to lag 0 (present time)
-        # and exclude self-loops
-        if u_var == v_var:
-            continue  # Skip self-loops
-            
-        # Case 1: v is at lag 0 (target is present)
-        if v_lag == 0:
+        # Normalize pair
+        if u_var < v_var:
             key = (u_var, v_var)
-            if key not in simplified_edges:
-                simplified_edges[key] = (m_u, m_v)
-            else:
-                old_m_u, old_m_v = simplified_edges[key]
-                if m_v == ARROW and old_m_v != ARROW:
-                    simplified_edges[key] = (m_u, m_v)
-                elif m_v == ARROW and old_m_v == ARROW:
-                    if m_u == ARROW:
-                        simplified_edges[key] = (m_u, m_v)
+            marks = (m_u, m_v)
+        else:
+            key = (v_var, u_var)
+            marks = (m_v, m_u) # Swap marks to match A, B order
+            
+        if key not in pair_edges:
+            pair_edges[key] = []
+        pair_edges[key].append(marks)
         
-        # Case 2: u is at lag 0 (source is present)
-        elif u_lag == 0:
-            key = (v_var, u_var)  # Reverse direction
-            if key not in simplified_edges:
-                simplified_edges[key] = (m_v, m_u)  # Swap marks
-            else:
-                old_m_u, old_m_v = simplified_edges[key]
-                if m_u == ARROW and old_m_v != ARROW:
-                    simplified_edges[key] = (m_v, m_u)
-                elif m_u == ARROW and old_m_v == ARROW:
-                    if m_v == ARROW:
-                        simplified_edges[key] = (m_v, m_u)
+    # 2. Classify relationships
+    summary_edges = {} # (u, v) -> 'directed' or 'ambiguous'
+    # Store as (u, v) for directed u->v, or tuple key for ambiguous
     
-    if not simplified_edges:
-        print("No simplified edges found (no connections to present time).")
+    # Helper to check mark types
+    def is_arrow(m): return m == ARROW
+    def is_tail(m): return m == TAIL or m == NULL
+    
+    for (A, B), mark_list in pair_edges.items():
+        # Analyze all edges between A and B
+        
+        # Condition: "edge with a tail at A and an arrowhead at B"
+        has_tail_A_arrow_B = False
+        
+        # Condition: "edge with a tail at B and an arrowhead at A"
+        has_tail_B_arrow_A = False
+        
+        # Condition: "arrowhead into A" (any edge)
+        has_arrow_at_A = False
+        
+        # Condition: "arrowhead into B" (any edge)
+        has_arrow_at_B = False
+        
+        for mA, mB in mark_list:
+            if is_arrow(mA):
+                has_arrow_at_A = True
+            if is_arrow(mB):
+                has_arrow_at_B = True
+                
+            if is_tail(mA) and is_arrow(mB):
+                has_tail_A_arrow_B = True
+                
+            if is_tail(mB) and is_arrow(mA):
+                has_tail_B_arrow_A = True
+        
+        # Classification Logic
+        # A -> B if: Has A->B AND No arrow at A
+        is_A_to_B = has_tail_A_arrow_B and not has_arrow_at_A
+        
+        # B -> A if: Has B->A AND No arrow at B
+        is_B_to_A = has_tail_B_arrow_A and not has_arrow_at_B
+        
+        if is_A_to_B:
+            summary_edges[(A, B)] = 'directed'
+        elif is_B_to_A:
+            summary_edges[(B, A)] = 'directed'
+        else:
+            # Ambiguous / Confounded
+            summary_edges[(A, B)] = 'ambiguous'
+
+    if not summary_edges:
+        print("No summary edges found.")
         return
     
     # Setup figure with white background
@@ -335,24 +386,41 @@ def plot_simplified_pag(G, edges, var_names):
         "MonetaryShock_RR",
         "t_bill_inflationexpectations", 
         "RNUSBIS",
+        "RNUSBIS_logdiff",
+        "FEDFUNDS",
         "baa_aaa_creditconditions",
         "assetprice_sp500",
+        "assetprice_sp500_logdiff",
         "Inflation_CPI",
         "Consumption_PCE",
-        "Output_IP"
+        "Consumption_PCE_logdiff",
+        "Investment_m",
+        "Investment_logdiff",
+        "NETEXP_m",
+        "Output_IP",
+        "Output_IP_logdiff",
+        "NX GDP RATIO PCT"
     ]
     
-    # Filter to only variables that appear in the graph
-    active_vars = [v for v in var_order if v in var_set and any(
-        v in edge for edge in simplified_edges.keys()
-    )]
+    # Find active variables
+    active_vars = set()
+    for k in summary_edges.keys():
+        active_vars.add(k[0])
+        active_vars.add(k[1])
+        
+    # Sort based on var_order
+    active_vars_sorted = [v for v in var_order if v in active_vars]
+    # Add any remaining that weren't in the list
+    for v in active_vars:
+        if v not in active_vars_sorted:
+            active_vars_sorted.append(v)
     
     # Create horizontal layout
     pos = {}
     x_spacing = 3.0
     y_center = 0.0
     
-    for idx, var in enumerate(active_vars):
+    for idx, var in enumerate(active_vars_sorted):
         pos[var] = (idx * x_spacing, y_center)
     
     # Color palette
@@ -364,12 +432,22 @@ def plot_simplified_pag(G, edges, var_names):
         "baa_aaa_creditconditions": "#E1BEE7",
         "assetprice_sp500": "#FFECB3",
         "RNUSBIS": "#FFCCBC",
-        "t_bill_inflationexpectations": "#B2DFDB"
+        "t_bill_inflationexpectations": "#B2DFDB",
+        # New variables
+        "Consumption_PCE_logdiff": "#C8E6C9",
+        "Output_IP_logdiff": "#FFD699",
+        "assetprice_sp500_logdiff": "#FFECB3",
+        "RNUSBIS_logdiff": "#FFCCBC",
+        "NETEXP_m": "#D7CCC8",
+        "FEDFUNDS": "#F0F4C3",
+        "Investment_m": "#CFD8DC",
+        "Investment_logdiff": "#CFD8DC",
+        "NX GDP RATIO PCT": "#D7CCC8"
     }
     
     # Draw nodes with larger circles
     node_radius = 0.5
-    for var_name in active_vars:
+    for var_name in active_vars_sorted:
         if var_name not in pos:
             continue
             
@@ -390,11 +468,24 @@ def plot_simplified_pag(G, edges, var_names):
         clean_name = clean_name.replace("baa_aaa_creditconditions", "Credit\nConditions")
         clean_name = clean_name.replace("RNUSBIS", "Interest\nRate")
         
+        # New vars cleaning
+        clean_name = clean_name.replace("Consumption_PCE_logdiff", "Consumption")
+        clean_name = clean_name.replace("Output_IP_logdiff", "Output")
+        clean_name = clean_name.replace("assetprice_sp500_logdiff", "Asset\nPrice")
+        clean_name = clean_name.replace("RNUSBIS_logdiff", "Interest\nRate")
+        clean_name = clean_name.replace("NETEXP_m", "Net\nExports")
+        clean_name = clean_name.replace("FEDFUNDS", "Fed\nFunds")
+        clean_name = clean_name.replace("Investment_m", "Investment")
+        clean_name = clean_name.replace("Investment_logdiff", "Investment")
+        clean_name = clean_name.replace("NX GDP RATIO PCT", "Net Exports\n(GDP Ratio)")
+        
         ax.text(x, y, clean_name, ha='center', va='center',
                 fontsize=9, weight='bold', zorder=4, color='#2C3E50')
     
-    # Draw edges with curved arrows
-    for (u_var, v_var), (m_u, m_v) in simplified_edges.items():
+    # Draw edges
+    for key, edge_type in summary_edges.items():
+        u_var, v_var = key
+        
         if u_var not in pos or v_var not in pos:
             continue
             
@@ -402,12 +493,16 @@ def plot_simplified_pag(G, edges, var_names):
         x2, y2 = pos[v_var]
         
         # Determine arrow style
-        if m_v == ARROW and m_u == ARROW:
-            arrowstyle = '<|-|>'  # Bidirected
-        elif m_v == ARROW:
+        if edge_type == 'directed':
             arrowstyle = '-|>'    # Directed u -> v
+            color = "#34495E"
+            linestyle = '-'
         else:
+            # Ambiguous: Draw as line or bidirected?
+            # Prompt says: "A -- B if adjacent but orientation is ambiguous"
             arrowstyle = '-'      # Plain line
+            color = "#555555"
+            linestyle = '--'      # Dashed for ambiguous
         
         # Calculate curvature - more curve for backward arrows
         dx = x2 - x1
@@ -425,13 +520,14 @@ def plot_simplified_pag(G, edges, var_names):
             posA=(x1, y1), posB=(x2, y2),
             arrowstyle=arrowstyle,
             mutation_scale=20,
-            color="#34495E",
+            color=color,
             lw=2.0,
+            linestyle=linestyle,
             shrinkA=node_radius*72,
             shrinkB=node_radius*72,
             connectionstyle=connection_style,
             zorder=2,
-            alpha=0.7
+            alpha=0.8
         )
         ax.add_patch(arrow)
     
@@ -445,15 +541,14 @@ def plot_simplified_pag(G, edges, var_names):
         ax.set_ylim(min(all_y) - margin_y, max(all_y) + margin_y)
     
     # Add title
-    ax.text(0.5, 0.95, "Monetary Shock Transmission Mechanism",
+    ax.text(0.5, 0.95, "Monetary Shock Transmission Mechanism (Summary PAG)",
             transform=ax.transAxes, ha='center', va='top',
             fontsize=16, weight='bold', color='#2C3E50')
     
     plt.tight_layout()
-    output_path = "data/outputs/logdiff-monetary-shock-pag-svarfci-simplified.png"
+    output_path = "data/outputs/final-monetary-shock-pag-svarfci-simplified.png"
     plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
     print(f"Simplified graph saved to {output_path}")
 
 if __name__ == "__main__":
     main()
-

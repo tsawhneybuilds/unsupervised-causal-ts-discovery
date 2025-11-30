@@ -43,6 +43,7 @@ from compare.graph_io import (
 )
 from compare.algorithms import (
     SVARFCIWrapper,
+    SVARGFCIWrapper,
     CausalLearnPCWrapper,
     CausalLearnFCIWrapper,
     CausalLearnGESWrapper,
@@ -391,6 +392,10 @@ Examples:
             alpha=use_alpha, 
             max_lag=use_max_lag,
             use_selection=False  # Already selected above
+        ),
+        SVARGFCIWrapper(
+            alpha=use_alpha,
+            max_lag=use_max_lag
         ),
         CausalLearnPCWrapper(alpha=use_alpha),
         CausalLearnFCIWrapper(alpha=use_alpha),

@@ -230,6 +230,145 @@ class SVARFCIWrapper(AlgorithmWrapper):
 
 
 # =============================================================================
+# SVAR-GFCI Wrapper
+# =============================================================================
+
+class SVARGFCIWrapper(AlgorithmWrapper):
+    """
+    Wrapper for SVAR-GFCI implementation.
+    
+    SVAR-GFCI is a hybrid algorithm that combines:
+    - SVAR-GES (score-based) for initial graph estimation  
+    - SVAR-FCI-style CI-based pruning and orientation
+    
+    Collapses the dynamic PAG to a summary graph for comparison.
+    """
+    
+    def __init__(
+        self, 
+        alpha: float = 0.05, 
+        max_lag: int = 2, 
+        max_cond_size: Optional[int] = None
+    ):
+        self.alpha = alpha
+        self.max_lag = max_lag
+        self.max_cond_size = max_cond_size
+    
+    @property
+    def name(self) -> str:
+        return f"SVAR-GFCI(α={self.alpha}, p={self.max_lag})"
+    
+    def fit(self, data: np.ndarray, var_names: List[str]) -> StandardGraph:
+        """Run SVAR-GFCI and collapse to summary graph."""
+        from svar_gfci.algo import SVAR_GFCI
+        from svar_fci.graph import NULL, CIRCLE, ARROW, TAIL
+        
+        # Run SVAR-GFCI
+        model = SVAR_GFCI(
+            alpha=self.alpha,
+            max_lag=self.max_lag,
+            max_cond_size=self.max_cond_size,
+            verbose=False
+        )
+        model.fit(data, var_names)
+        
+        G = model.graph_
+        
+        # Extract edges from dynamic PAG
+        edges_raw = []
+        for i in range(G.n_nodes):
+            for j in range(i + 1, G.n_nodes):
+                if G.is_adjacent(i, j):
+                    u = G.node_label(i)
+                    v = G.node_label(j)
+                    m_ji = G.M[j, i]  # mark at i
+                    m_ij = G.M[i, j]  # mark at j
+                    edges_raw.append((u, v, m_ji, m_ij))
+        
+        # Collapse to summary graph (same logic as SVAR-FCI)
+        summary_edges = self._collapse_to_summary(edges_raw, var_names, G)
+        
+        return StandardGraph(nodes=var_names, edges=summary_edges)
+    
+    def _collapse_to_summary(self, edges_raw, var_names, G) -> List[Edge]:
+        """
+        Collapse dynamic PAG edges to summary graph edges.
+        Uses the same logic as SVARFCIWrapper.
+        """
+        from svar_fci.graph import NULL, CIRCLE, ARROW, TAIL
+        
+        # Group edges by variable pair
+        pair_edges = {}
+        
+        for u, v, m_u, m_v in edges_raw:
+            u_parts = u.split("_lag")
+            v_parts = v.split("_lag")
+            if len(u_parts) < 2 or len(v_parts) < 2:
+                continue
+            
+            u_var = "_".join(u_parts[:-1])
+            v_var = "_".join(v_parts[:-1])
+            
+            # Ignore self-lags
+            if u_var == v_var:
+                continue
+            
+            # Normalize pair
+            if u_var < v_var:
+                key = (u_var, v_var)
+                marks = (m_u, m_v)
+            else:
+                key = (v_var, u_var)
+                marks = (m_v, m_u)
+            
+            if key not in pair_edges:
+                pair_edges[key] = []
+            pair_edges[key].append(marks)
+        
+        # Classify relationships
+        summary_edges = []
+        
+        def is_arrow(m):
+            return m == ARROW
+        
+        def is_tail(m):
+            return m == TAIL or m == NULL
+        
+        for (A, B), mark_list in pair_edges.items():
+            has_tail_A_arrow_B = False
+            has_tail_B_arrow_A = False
+            has_arrow_at_A = False
+            has_arrow_at_B = False
+            
+            for mA, mB in mark_list:
+                if is_arrow(mA):
+                    has_arrow_at_A = True
+                if is_arrow(mB):
+                    has_arrow_at_B = True
+                if is_tail(mA) and is_arrow(mB):
+                    has_tail_A_arrow_B = True
+                if is_tail(mB) and is_arrow(mA):
+                    has_tail_B_arrow_A = True
+            
+            # Classification logic
+            is_A_to_B = has_tail_A_arrow_B and not has_arrow_at_A
+            is_B_to_A = has_tail_B_arrow_A and not has_arrow_at_B
+            
+            if is_A_to_B:
+                summary_edges.append(Edge(A, B, "directed"))
+            elif is_B_to_A:
+                summary_edges.append(Edge(B, A, "directed"))
+            else:
+                # Ambiguous - check if bidirected or undirected
+                if has_arrow_at_A and has_arrow_at_B:
+                    summary_edges.append(Edge(A, B, "bidirected"))
+                else:
+                    summary_edges.append(Edge(A, B, "undirected"))
+        
+        return summary_edges
+
+
+# =============================================================================
 # causal-learn Wrappers
 # =============================================================================
 
@@ -493,13 +632,14 @@ def get_default_algorithms(alpha: float = 0.05, max_lag: int = 2) -> List[Algori
     
     Args:
         alpha: Significance level for constraint-based methods
-        max_lag: Maximum lag for SVAR-FCI
+        max_lag: Maximum lag for SVAR-FCI and SVAR-GFCI
     
     Returns:
         List of AlgorithmWrapper instances
     """
     return [
         SVARFCIWrapper(alpha=alpha, max_lag=max_lag),
+        SVARGFCIWrapper(alpha=alpha, max_lag=max_lag),
         CausalLearnPCWrapper(alpha=alpha),
         CausalLearnFCIWrapper(alpha=alpha),
         CausalLearnGESWrapper(),

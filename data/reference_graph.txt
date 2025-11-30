@@ -1,0 +1,13 @@
+Graph Nodes:
+MonetaryShock_RR;Inflation_CPI;Consumption_PCE;Output_IP;baa_aaa_creditconditions;assetprice_sp500;RNUSBIS;t_bill_inflationexpectations
+
+Graph Edges:
+1. MonetaryShock_RR --> RNUSBIS
+2. RNUSBIS --> baa_aaa_creditconditions
+3. baa_aaa_creditconditions --> assetprice_sp500
+4. MonetaryShock_RR --> t_bill_inflationexpectations
+5. RNUSBIS --> Consumption_PCE
+6. RNUSBIS --> Output_IP
+7. Consumption_PCE --> Output_IP
+8. Inflation_CPI --> MonetaryShock_RR
+

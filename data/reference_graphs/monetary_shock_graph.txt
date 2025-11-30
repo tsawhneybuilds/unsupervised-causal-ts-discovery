@@ -1,0 +1,21 @@
+Graph Nodes:
+MonetaryShock_RR;FEDFUNDS;t_bill_inflationexpectations;baa_aaa_creditconditions;Consumption_PCE_logdiff;Output_IP_logdiff;assetprice_sp500_logdiff;RNUSBIS_logdiff;Investment_logdiff;NX GDP RATIO PCT
+
+Graph Edges:
+1. MonetaryShock_RR --> FEDFUNDS
+2. MonetaryShock_RR --> assetprice_sp500_logdiff
+3. MonetaryShock_RR --> t_bill_inflationexpectations
+4. FEDFUNDS --> baa_aaa_creditconditions
+5. FEDFUNDS --> assetprice_sp500_logdiff
+6. FEDFUNDS --> Investment_logdiff
+7. FEDFUNDS --> RNUSBIS_logdiff
+8. baa_aaa_creditconditions --> Consumption_PCE_logdiff
+9. baa_aaa_creditconditions --> Investment_logdiff
+10. assetprice_sp500_logdiff --> Consumption_PCE_logdiff
+11. assetprice_sp500_logdiff --> Investment_logdiff
+12. assetprice_sp500_logdiff --> RNUSBIS_logdiff
+13. t_bill_inflationexpectations --> RNUSBIS_logdiff
+14. RNUSBIS_logdiff --> NX GDP RATIO PCT
+15. Consumption_PCE_logdiff --> Output_IP_logdiff
+16. Investment_logdiff --> Output_IP_logdiff
+17. NX GDP RATIO PCT --> Output_IP_logdiff

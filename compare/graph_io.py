@@ -22,17 +22,30 @@ Edge types:
 """
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Tuple, Optional, Set
 from . import init_jvm
 
 
 @dataclass
 class Edge:
-    """Represents an edge in a graph."""
+    """
+    Represents an edge in a graph.
+    
+    Attributes:
+        src: Source node name
+        tgt: Target node name
+        edge_type: Type of edge - "directed", "bidirected", "undirected", 
+                   "pag_circle_arrow", "pag_circle_circle"
+        lags: List of time lags where this relationship was observed.
+              For time-series algorithms (SVAR-FCI, LPCMCI, etc.), this tracks
+              which lags had edges between these variables. Used for plotting
+              lag labels on edges. None for non-time-series algorithms.
+    """
     src: str
     tgt: str
-    edge_type: str  # "directed", "bidirected", "undirected", "pag_circle_arrow", "pag_circle_circle"
+    edge_type: str
+    lags: Optional[List[int]] = field(default=None)
     
     def __hash__(self):
         return hash((self.src, self.tgt, self.edge_type))
@@ -390,12 +403,12 @@ def apply_variable_map(graph: StandardGraph, var_map: dict) -> StandardGraph:
     # Map node names
     new_nodes = [var_map.get(n, n) for n in graph.nodes]
     
-    # Map edge endpoints
+    # Map edge endpoints (preserve lags)
     new_edges = []
     for edge in graph.edges:
         new_src = var_map.get(edge.src, edge.src)
         new_tgt = var_map.get(edge.tgt, edge.tgt)
-        new_edges.append(Edge(new_src, new_tgt, edge.edge_type))
+        new_edges.append(Edge(new_src, new_tgt, edge.edge_type, edge.lags))
     
     return StandardGraph(nodes=new_nodes, edges=new_edges)
 

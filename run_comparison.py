@@ -15,12 +15,59 @@ Usage:
     
     # Run with custom data and reference graph
     python run_comparison.py --data data/my_data.csv --reference data/my_graph.txt
+    
+    # Generate graph visualizations (PAG-style plots with lag labels)
+    python run_comparison.py --dataset monetary_shock --plot
+    
+    # Run with plots and save results to a directory
+    python run_comparison.py --dataset monetary_shock --plot --output results/
+
+Plotting Features:
+    When using --plot, the script generates tigramite-style graph visualizations
+    for each algorithm. The plots include:
+    
+    - PAG-style edge marks:
+      * Arrows (→) for directed edges
+      * Circles (o) for uncertain orientations
+      * Tails (-) for certain parent-child relationships
+      * Bidirected edges (<->) for latent confounders
+    
+    - Lag labels on edges:
+      * Numbers (e.g., "2,1" or "2,1,0") showing at which time lags
+        each relationship was observed
+      * Automatically extracted from time-series algorithms (SVAR-FCI, LPCMCI, etc.)
+    
+    Plots are saved to data/outputs/ by default, with filenames like:
+    SVAR-FCIα_005_p_2_0p0500_20251202_124730.png
 
 Requirements:
     - py-tetrad (pip install git+https://github.com/cmu-phil/py-tetrad)
     - causal-learn (pip install causal-learn)
     - Java 21+ (set JAVA_HOME environment variable)
+    - matplotlib (for plotting: pip install matplotlib)
+    - tigramite (for plotting: included in Causal_with_Tigramite/)
+
+tsFCI Setup (optional):
+    To use the tsFCI algorithm, you need:
+    1. R installed on your system
+    2. rpy2 Python package: pip install rpy2
+    3. networkx and pydot: pip install networkx pydot
+    4. Download tsFCI R code from: https://sites.google.com/site/daborisov/tsfci
+       (Look for "RCode_TETRADjar_tsFCI.zip" on Doris Entner's page)
+    5. Extract and set TSFCI_R_PATH below to point to the RCode_TETRADjar folder
 """
+
+# =============================================================================
+# tsFCI CONFIGURATION
+# =============================================================================
+# Set this to the path of your RCode_TETRADjar folder (from tsFCI download).
+# The folder should contain start_up.R and other R scripts.
+# Example: '/Users/yourname/Downloads/RCode_TETRADjar_tsFCI/RCode_TETRADjar'
+# Set to None to disable tsFCI.
+
+TSFCI_R_PATH = '/Users/tanushsawhney/Documents/uml/project/RCode_TETRADjar'
+
+# =============================================================================
 
 import argparse
 import os
@@ -51,6 +98,7 @@ from compare.algorithms import (
     TetradPCWrapper,
     TetradFCIWrapper,
     TetradFGESWrapper,
+    TSFCIWrapper,
     get_default_algorithms,
     get_tetrad_algorithms,
     get_tigramite_algorithms
@@ -156,6 +204,12 @@ Examples:
   # Run with custom data and reference graph
   python run_comparison.py --data data/my_data.csv --reference data/my_graph.txt
 
+  # Generate graph visualizations (PAG-style plots with lag labels)
+  python run_comparison.py --dataset monetary_shock --plot
+
+  # Run comparison with plots and save results
+  python run_comparison.py --dataset monetary_shock --plot --output results/
+
   # Custom grid for model selection
   python run_comparison.py --dataset monetary_shock --alpha-grid 0.01,0.05,0.10 --lag-grid 1,2,3
 
@@ -164,6 +218,15 @@ Examples:
 
   # Include Tetrad algorithms (requires py-tetrad)
   python run_comparison.py --dataset monetary_shock --include-tetrad
+
+  # Run with plots and Tetrad algorithms
+  python run_comparison.py --dataset monetary_shock --plot --include-tetrad
+
+Plotting:
+  The --plot flag generates tigramite-style visualizations showing:
+  - PAG-style edge marks (arrows, circles, tails) indicating edge types
+  - Lag labels on edges showing at which time lags relationships were found
+  - Plots are saved to data/outputs/ by default (or --output directory)
         """
     )
     
@@ -253,6 +316,15 @@ Examples:
         '--quiet', '-q',
         action='store_true',
         help='Suppress progress output'
+    )
+    
+    parser.add_argument(
+        '--plot', '-p',
+        action='store_true',
+        help='Generate tigramite-style graph visualizations for each algorithm. '
+             'Plots show PAG-style edge marks (arrows, circles, tails) and lag labels '
+             'indicating at which time lags relationships were observed. '
+             'Saves plots as algorithm_alphavalue_datetime.png in data/outputs/ (or --output directory).'
     )
     
     args = parser.parse_args()
@@ -404,12 +476,23 @@ Examples:
         ),
         LPCMCIWrapper(
             alpha=use_alpha,
-            max_lag=use_max_lag
+            max_lag=use_max_lag,
+            cond_ind_test='parcorr'
         ),
         CausalLearnPCWrapper(alpha=use_alpha),
         CausalLearnFCIWrapper(alpha=use_alpha),
         CausalLearnGESWrapper(),
     ]
+    
+    # Add tsFCI if R path is configured
+    if TSFCI_R_PATH:
+        algorithms.append(
+            TSFCIWrapper(
+                sig=use_alpha,
+                tau=use_max_lag,
+                r_code_path=TSFCI_R_PATH
+            )
+        )
     
     if args.include_tetrad:
         print("Including Tetrad algorithms (requires py-tetrad and Java)...")
@@ -438,6 +521,14 @@ Examples:
     # Save results
     if args.output:
         runner.save_results(args.output)
+    
+    # Generate plots if requested
+    if args.plot:
+        runner.plot_graphs(
+            output_dir='data/outputs',
+            alpha=use_alpha,
+            max_lag=use_max_lag
+        )
     
     return runner.get_results_table()
 

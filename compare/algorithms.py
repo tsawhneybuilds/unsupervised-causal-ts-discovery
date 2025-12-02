@@ -156,6 +156,7 @@ class SVARFCIWrapper(AlgorithmWrapper):
         Collapse dynamic PAG edges to summary graph edges.
         Uses the same logic as plot_simplified_pag in run_svarfci.py.
         Now also tracks which lags each edge appears at for plotting.
+        Preserves circle marks for proper PAG semantics.
         """
         from svar_fci.graph import NULL, CIRCLE, ARROW, TAIL
         
@@ -202,11 +203,16 @@ class SVARFCIWrapper(AlgorithmWrapper):
         def is_tail(m):
             return m == TAIL or m == NULL
         
+        def is_circle(m):
+            return m == CIRCLE
+        
         for (A, B), lag_mark_list in pair_edges.items():
             has_tail_A_arrow_B = False
             has_tail_B_arrow_A = False
             has_arrow_at_A = False
             has_arrow_at_B = False
+            has_circle_at_A = False
+            has_circle_at_B = False
             
             # Collect unique lags where edges exist
             edge_lags = set()
@@ -217,6 +223,10 @@ class SVARFCIWrapper(AlgorithmWrapper):
                     has_arrow_at_A = True
                 if is_arrow(mB):
                     has_arrow_at_B = True
+                if is_circle(mA):
+                    has_circle_at_A = True
+                if is_circle(mB):
+                    has_circle_at_B = True
                 if is_tail(mA) and is_arrow(mB):
                     has_tail_A_arrow_B = True
                 if is_tail(mB) and is_arrow(mA):
@@ -225,20 +235,33 @@ class SVARFCIWrapper(AlgorithmWrapper):
             # Sort lags in descending order (like tigramite does)
             sorted_lags = sorted(edge_lags, reverse=True)
             
-            # Classification logic
-            is_A_to_B = has_tail_A_arrow_B and not has_arrow_at_A
-            is_B_to_A = has_tail_B_arrow_A and not has_arrow_at_B
+            # Classification logic - preserving circle marks
+            # Directed requires: tail at source, arrow at target, NO arrow or circle at source
+            is_A_to_B = has_tail_A_arrow_B and not has_arrow_at_A and not has_circle_at_A
+            is_B_to_A = has_tail_B_arrow_A and not has_arrow_at_B and not has_circle_at_B
             
-            if is_A_to_B:
+            if is_A_to_B and not is_B_to_A:
                 summary_edges.append(Edge(A, B, "directed", lags=sorted_lags))
-            elif is_B_to_A:
+            elif is_B_to_A and not is_A_to_B:
                 summary_edges.append(Edge(B, A, "directed", lags=sorted_lags))
+            elif has_arrow_at_A and has_arrow_at_B:
+                # Bidirected: arrow at both ends
+                summary_edges.append(Edge(A, B, "bidirected", lags=sorted_lags))
+            elif has_circle_at_A and has_circle_at_B:
+                # Both ends have circles: o-o
+                summary_edges.append(Edge(A, B, "pag_circle_circle", lags=sorted_lags))
+            elif has_circle_at_A and has_arrow_at_B:
+                # Circle at A, arrow at B: A o-> B
+                summary_edges.append(Edge(A, B, "pag_circle_arrow", lags=sorted_lags))
+            elif has_arrow_at_A and has_circle_at_B:
+                # Arrow at A, circle at B: A <-o B means B o-> A
+                summary_edges.append(Edge(B, A, "pag_circle_arrow", lags=sorted_lags))
+            elif has_circle_at_A or has_circle_at_B:
+                # One circle, one tail: treat as circle-circle for safety
+                summary_edges.append(Edge(A, B, "pag_circle_circle", lags=sorted_lags))
             else:
-                # Ambiguous - check if bidirected or undirected
-                if has_arrow_at_A and has_arrow_at_B:
-                    summary_edges.append(Edge(A, B, "bidirected", lags=sorted_lags))
-                else:
-                    summary_edges.append(Edge(A, B, "undirected", lags=sorted_lags))
+                # Default to undirected (tail at both ends)
+                summary_edges.append(Edge(A, B, "undirected", lags=sorted_lags))
         
         return summary_edges
 
@@ -308,6 +331,7 @@ class SVARGFCIWrapper(AlgorithmWrapper):
         """
         Collapse dynamic PAG edges to summary graph edges.
         Uses the same logic as SVARFCIWrapper, including lag tracking.
+        Preserves circle marks for proper PAG semantics.
         """
         from svar_fci.graph import NULL, CIRCLE, ARROW, TAIL
         
@@ -354,11 +378,16 @@ class SVARGFCIWrapper(AlgorithmWrapper):
         def is_tail(m):
             return m == TAIL or m == NULL
         
+        def is_circle(m):
+            return m == CIRCLE
+        
         for (A, B), lag_mark_list in pair_edges.items():
             has_tail_A_arrow_B = False
             has_tail_B_arrow_A = False
             has_arrow_at_A = False
             has_arrow_at_B = False
+            has_circle_at_A = False
+            has_circle_at_B = False
             
             # Collect unique lags where edges exist
             edge_lags = set()
@@ -369,6 +398,10 @@ class SVARGFCIWrapper(AlgorithmWrapper):
                     has_arrow_at_A = True
                 if is_arrow(mB):
                     has_arrow_at_B = True
+                if is_circle(mA):
+                    has_circle_at_A = True
+                if is_circle(mB):
+                    has_circle_at_B = True
                 if is_tail(mA) and is_arrow(mB):
                     has_tail_A_arrow_B = True
                 if is_tail(mB) and is_arrow(mA):
@@ -377,20 +410,33 @@ class SVARGFCIWrapper(AlgorithmWrapper):
             # Sort lags in descending order (like tigramite does)
             sorted_lags = sorted(edge_lags, reverse=True)
             
-            # Classification logic
-            is_A_to_B = has_tail_A_arrow_B and not has_arrow_at_A
-            is_B_to_A = has_tail_B_arrow_A and not has_arrow_at_B
+            # Classification logic - preserving circle marks
+            # Directed requires: tail at source, arrow at target, NO arrow or circle at source
+            is_A_to_B = has_tail_A_arrow_B and not has_arrow_at_A and not has_circle_at_A
+            is_B_to_A = has_tail_B_arrow_A and not has_arrow_at_B and not has_circle_at_B
             
-            if is_A_to_B:
+            if is_A_to_B and not is_B_to_A:
                 summary_edges.append(Edge(A, B, "directed", lags=sorted_lags))
-            elif is_B_to_A:
+            elif is_B_to_A and not is_A_to_B:
                 summary_edges.append(Edge(B, A, "directed", lags=sorted_lags))
+            elif has_arrow_at_A and has_arrow_at_B:
+                # Bidirected: arrow at both ends
+                summary_edges.append(Edge(A, B, "bidirected", lags=sorted_lags))
+            elif has_circle_at_A and has_circle_at_B:
+                # Both ends have circles: o-o
+                summary_edges.append(Edge(A, B, "pag_circle_circle", lags=sorted_lags))
+            elif has_circle_at_A and has_arrow_at_B:
+                # Circle at A, arrow at B: A o-> B
+                summary_edges.append(Edge(A, B, "pag_circle_arrow", lags=sorted_lags))
+            elif has_arrow_at_A and has_circle_at_B:
+                # Arrow at A, circle at B: A <-o B means B o-> A
+                summary_edges.append(Edge(B, A, "pag_circle_arrow", lags=sorted_lags))
+            elif has_circle_at_A or has_circle_at_B:
+                # One circle, one tail: treat as circle-circle for safety
+                summary_edges.append(Edge(A, B, "pag_circle_circle", lags=sorted_lags))
             else:
-                # Ambiguous - check if bidirected or undirected
-                if has_arrow_at_A and has_arrow_at_B:
-                    summary_edges.append(Edge(A, B, "bidirected", lags=sorted_lags))
-                else:
-                    summary_edges.append(Edge(A, B, "undirected", lags=sorted_lags))
+                # Default to undirected (tail at both ends)
+                summary_edges.append(Edge(A, B, "undirected", lags=sorted_lags))
         
         return summary_edges
 
@@ -494,6 +540,7 @@ class LPCMCIWrapper(AlgorithmWrapper):
         """
         Collapse the 3D DPAG to a summary graph.
         Now also tracks which lags each edge appears at for plotting.
+        Preserves circle marks for proper PAG semantics.
         
         LPCMCI edge notation:
         - '-->' : directed edge (tail to arrow)
@@ -573,26 +620,39 @@ class LPCMCIWrapper(AlgorithmWrapper):
             # Sort lags in descending order (like tigramite does)
             sorted_lags = sorted(info['lags'], reverse=True)
             
-            # Classification logic (similar to SVARFCIWrapper)
-            # i --> j: tail at i, arrow at j, no arrow at i
-            # i <-- j: arrow at i, tail at j, no arrow at j
+            # Classification logic - preserving circle marks
+            # i --> j: tail at i, arrow at j, no arrow at i, no circle at i
+            # i <-- j: arrow at i, tail at j, no arrow at j, no circle at j
             # i <-> j: arrow at both
-            # i --- j: tail at both (or uncertain)
+            # i o-> j: circle at i, arrow at j
+            # i o-o j: circle at both
             
-            is_i_to_j = info['has_tail_at_i'] and info['has_arrow_at_j'] and not info['has_arrow_at_i']
-            is_j_to_i = info['has_tail_at_j'] and info['has_arrow_at_i'] and not info['has_arrow_at_j']
+            is_i_to_j = (info['has_tail_at_i'] and info['has_arrow_at_j'] 
+                         and not info['has_arrow_at_i'] and not info['has_circle_at_i'])
+            is_j_to_i = (info['has_tail_at_j'] and info['has_arrow_at_i'] 
+                         and not info['has_arrow_at_j'] and not info['has_circle_at_j'])
             
             if is_i_to_j and not is_j_to_i:
                 summary_edges.append(Edge(var_i, var_j, "directed", lags=sorted_lags))
             elif is_j_to_i and not is_i_to_j:
                 summary_edges.append(Edge(var_j, var_i, "directed", lags=sorted_lags))
             elif info['has_arrow_at_i'] and info['has_arrow_at_j']:
+                # Bidirected: arrow at both ends
                 summary_edges.append(Edge(var_i, var_j, "bidirected", lags=sorted_lags))
+            elif info['has_circle_at_i'] and info['has_circle_at_j']:
+                # Both ends have circles: o-o
+                summary_edges.append(Edge(var_i, var_j, "pag_circle_circle", lags=sorted_lags))
+            elif info['has_circle_at_i'] and info['has_arrow_at_j']:
+                # Circle at i, arrow at j: i o-> j
+                summary_edges.append(Edge(var_i, var_j, "pag_circle_arrow", lags=sorted_lags))
+            elif info['has_arrow_at_i'] and info['has_circle_at_j']:
+                # Arrow at i, circle at j: i <-o j means j o-> i
+                summary_edges.append(Edge(var_j, var_i, "pag_circle_arrow", lags=sorted_lags))
             elif info['has_circle_at_i'] or info['has_circle_at_j']:
-                # Uncertain edge - treat as undirected for comparison
-                summary_edges.append(Edge(var_i, var_j, "undirected", lags=sorted_lags))
+                # One circle, one tail: treat as circle-circle for safety
+                summary_edges.append(Edge(var_i, var_j, "pag_circle_circle", lags=sorted_lags))
             else:
-                # Default to undirected
+                # Default to undirected (tail at both ends)
                 summary_edges.append(Edge(var_i, var_j, "undirected", lags=sorted_lags))
         
         return summary_edges
@@ -1059,6 +1119,7 @@ class TSFCIWrapper(AlgorithmWrapper):
     def _convert_pag_to_summary(self, pag: np.ndarray, var_names: List[str]) -> List[Edge]:
         """
         Convert tsFCI PAG matrix to summary graph edges.
+        Preserves circle marks for proper PAG semantics.
         
         The PAG matrix is a square matrix where:
         - pag[i,j] = 0: no edge mark
@@ -1119,6 +1180,8 @@ class TSFCIWrapper(AlgorithmWrapper):
                         'has_arrow_at_tgt': False,
                         'has_tail_at_src': False,
                         'has_tail_at_tgt': False,
+                        'has_circle_at_src': False,
+                        'has_circle_at_tgt': False,
                         'lags': set(),
                     }
                 
@@ -1131,11 +1194,15 @@ class TSFCIWrapper(AlgorithmWrapper):
                     pair_info[key]['has_arrow_at_src'] = True
                 elif src_mark == 1:
                     pair_info[key]['has_tail_at_src'] = True
+                elif src_mark == 3:
+                    pair_info[key]['has_circle_at_src'] = True
                 
                 if tgt_mark == 2:
                     pair_info[key]['has_arrow_at_tgt'] = True
                 elif tgt_mark == 1:
                     pair_info[key]['has_tail_at_tgt'] = True
+                elif tgt_mark == 3:
+                    pair_info[key]['has_circle_at_tgt'] = True
         
         # Convert to summary edges
         summary_edges = []
@@ -1147,17 +1214,34 @@ class TSFCIWrapper(AlgorithmWrapper):
             # Sort lags in descending order (like tigramite does)
             sorted_lags = sorted(info['lags'], reverse=True)
             
-            # Classification logic (same as SVAR-FCI)
-            is_i_to_j = info['has_tail_at_src'] and info['has_arrow_at_tgt'] and not info['has_arrow_at_src']
-            is_j_to_i = info['has_tail_at_tgt'] and info['has_arrow_at_src'] and not info['has_arrow_at_tgt']
+            # Classification logic - preserving circle marks
+            # Directed requires: tail at source, arrow at target, NO arrow or circle at source
+            is_i_to_j = (info['has_tail_at_src'] and info['has_arrow_at_tgt'] 
+                         and not info['has_arrow_at_src'] and not info['has_circle_at_src'])
+            is_j_to_i = (info['has_tail_at_tgt'] and info['has_arrow_at_src'] 
+                         and not info['has_arrow_at_tgt'] and not info['has_circle_at_tgt'])
             
             if is_i_to_j and not is_j_to_i:
                 summary_edges.append(Edge(name_i, name_j, "directed", lags=sorted_lags))
             elif is_j_to_i and not is_i_to_j:
                 summary_edges.append(Edge(name_j, name_i, "directed", lags=sorted_lags))
             elif info['has_arrow_at_src'] and info['has_arrow_at_tgt']:
+                # Bidirected: arrow at both ends
                 summary_edges.append(Edge(name_i, name_j, "bidirected", lags=sorted_lags))
+            elif info['has_circle_at_src'] and info['has_circle_at_tgt']:
+                # Both ends have circles: o-o
+                summary_edges.append(Edge(name_i, name_j, "pag_circle_circle", lags=sorted_lags))
+            elif info['has_circle_at_src'] and info['has_arrow_at_tgt']:
+                # Circle at src, arrow at tgt: src o-> tgt
+                summary_edges.append(Edge(name_i, name_j, "pag_circle_arrow", lags=sorted_lags))
+            elif info['has_arrow_at_src'] and info['has_circle_at_tgt']:
+                # Arrow at src, circle at tgt: src <-o tgt means tgt o-> src
+                summary_edges.append(Edge(name_j, name_i, "pag_circle_arrow", lags=sorted_lags))
+            elif info['has_circle_at_src'] or info['has_circle_at_tgt']:
+                # One circle, one tail: treat as circle-circle for safety
+                summary_edges.append(Edge(name_i, name_j, "pag_circle_circle", lags=sorted_lags))
             else:
+                # Default to undirected (tail at both ends)
                 summary_edges.append(Edge(name_i, name_j, "undirected", lags=sorted_lags))
         
         return summary_edges

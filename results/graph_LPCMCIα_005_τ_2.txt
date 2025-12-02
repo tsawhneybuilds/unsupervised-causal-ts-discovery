@@ -1,0 +1,15 @@
+Graph Nodes:
+MonetaryShock_RR;FEDFUNDS;Output_IP_logdiff;assetprice_sp500_logdiff;RNUSBIS_logdiff;Investment_logdiff;NX GDP RATIO PCT
+
+Graph Edges:
+1. MonetaryShock_RR --> FEDFUNDS
+2. FEDFUNDS <-> Output_IP_logdiff
+3. FEDFUNDS <-> assetprice_sp500_logdiff
+4. FEDFUNDS --> Investment_logdiff
+5. Investment_logdiff --> Output_IP_logdiff
+6. Output_IP_logdiff --- NX GDP RATIO PCT
+7. assetprice_sp500_logdiff --> MonetaryShock_RR
+8. assetprice_sp500_logdiff <-> Investment_logdiff
+9. NX GDP RATIO PCT --> MonetaryShock_RR
+10. assetprice_sp500_logdiff --- NX GDP RATIO PCT
+11. RNUSBIS_logdiff --- NX GDP RATIO PCT

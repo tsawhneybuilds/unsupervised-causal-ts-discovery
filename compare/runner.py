@@ -24,6 +24,7 @@ from .graph_io import (
 )
 from .metrics import compute_core_metrics, compute_all_metrics
 from .algorithms import AlgorithmWrapper, get_default_algorithms
+from .plotting import plot_graph_tigramite, generate_plot_filename
 
 
 @dataclass
@@ -200,6 +201,62 @@ class ComparisonRunner:
         write_tetrad_graph_file(self.reference_graph, ref_path)
         
         print(f"\nResults saved to {output_dir}/")
+    
+    def plot_graphs(
+        self, 
+        output_dir: str = 'data/outputs',
+        alpha: float = 0.05,
+        max_lag: int = None
+    ):
+        """
+        Generate tigramite-style visualizations for all algorithm results.
+        
+        Plots include:
+        - PAG-style edge marks (arrows, circles, tails)
+        - Lag labels showing at which time lags relationships were observed
+        
+        Args:
+            output_dir: Directory to save plot images
+            alpha: Alpha value used (for filename)
+            max_lag: Maximum lag for time series graphs. If None, auto-detected
+                     from edge lag information stored in each graph.
+        """
+        # Use absolute path to avoid issues with working directory changes
+        output_dir = os.path.abspath(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+        
+        if self.verbose:
+            print(f"\nGenerating graph visualizations with PAG-style edges and lag labels...")
+        
+        for result in self.results:
+            if result.error:
+                if self.verbose:
+                    print(f"  Skipping {result.algorithm_name} (error occurred)")
+                continue
+            
+            # Generate filename
+            save_path = generate_plot_filename(
+                algorithm_name=result.algorithm_name,
+                alpha=alpha,
+                output_dir=output_dir
+            )
+            
+            try:
+                # max_lag=None allows auto-detection from edge lags
+                plot_graph_tigramite(
+                    graph=result.graph,
+                    var_names=result.graph.nodes,
+                    save_name=save_path,
+                    max_lag=max_lag,
+                )
+                if self.verbose:
+                    print(f"  Saved: {save_path}")
+            except Exception as e:
+                if self.verbose:
+                    print(f"  Error plotting {result.algorithm_name}: {e}")
+        
+        if self.verbose:
+            print(f"Plots saved to {output_dir}/")
     
     def get_markdown_table(self) -> str:
         """

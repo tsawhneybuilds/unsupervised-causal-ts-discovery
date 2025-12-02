@@ -155,10 +155,12 @@ class SVARFCIWrapper(AlgorithmWrapper):
         """
         Collapse dynamic PAG edges to summary graph edges.
         Uses the same logic as plot_simplified_pag in run_svarfci.py.
+        Now also tracks which lags each edge appears at for plotting.
         """
         from svar_fci.graph import NULL, CIRCLE, ARROW, TAIL
         
-        # Group edges by variable pair
+        # Group edges by variable pair, tracking lags and marks
+        # pair_edges[(A, B)] = [(lag, mark_A, mark_B), ...]
         pair_edges = {}
         
         for u, v, m_u, m_v in edges_raw:
@@ -169,12 +171,17 @@ class SVARFCIWrapper(AlgorithmWrapper):
             
             u_var = "_".join(u_parts[:-1])
             v_var = "_".join(v_parts[:-1])
+            u_lag = int(u_parts[-1])
+            v_lag = int(v_parts[-1])
             
             # Ignore self-lags
             if u_var == v_var:
                 continue
             
-            # Normalize pair
+            # Use max lag as the representative lag for this edge
+            edge_lag = max(u_lag, v_lag)
+            
+            # Normalize pair (alphabetically)
             if u_var < v_var:
                 key = (u_var, v_var)
                 marks = (m_u, m_v)
@@ -184,7 +191,7 @@ class SVARFCIWrapper(AlgorithmWrapper):
             
             if key not in pair_edges:
                 pair_edges[key] = []
-            pair_edges[key].append(marks)
+            pair_edges[key].append((edge_lag, marks[0], marks[1]))
         
         # Classify relationships
         summary_edges = []
@@ -195,13 +202,17 @@ class SVARFCIWrapper(AlgorithmWrapper):
         def is_tail(m):
             return m == TAIL or m == NULL
         
-        for (A, B), mark_list in pair_edges.items():
+        for (A, B), lag_mark_list in pair_edges.items():
             has_tail_A_arrow_B = False
             has_tail_B_arrow_A = False
             has_arrow_at_A = False
             has_arrow_at_B = False
             
-            for mA, mB in mark_list:
+            # Collect unique lags where edges exist
+            edge_lags = set()
+            
+            for lag, mA, mB in lag_mark_list:
+                edge_lags.add(lag)
                 if is_arrow(mA):
                     has_arrow_at_A = True
                 if is_arrow(mB):
@@ -211,20 +222,23 @@ class SVARFCIWrapper(AlgorithmWrapper):
                 if is_tail(mB) and is_arrow(mA):
                     has_tail_B_arrow_A = True
             
+            # Sort lags in descending order (like tigramite does)
+            sorted_lags = sorted(edge_lags, reverse=True)
+            
             # Classification logic
             is_A_to_B = has_tail_A_arrow_B and not has_arrow_at_A
             is_B_to_A = has_tail_B_arrow_A and not has_arrow_at_B
             
             if is_A_to_B:
-                summary_edges.append(Edge(A, B, "directed"))
+                summary_edges.append(Edge(A, B, "directed", lags=sorted_lags))
             elif is_B_to_A:
-                summary_edges.append(Edge(B, A, "directed"))
+                summary_edges.append(Edge(B, A, "directed", lags=sorted_lags))
             else:
                 # Ambiguous - check if bidirected or undirected
                 if has_arrow_at_A and has_arrow_at_B:
-                    summary_edges.append(Edge(A, B, "bidirected"))
+                    summary_edges.append(Edge(A, B, "bidirected", lags=sorted_lags))
                 else:
-                    summary_edges.append(Edge(A, B, "undirected"))
+                    summary_edges.append(Edge(A, B, "undirected", lags=sorted_lags))
         
         return summary_edges
 
@@ -293,11 +307,12 @@ class SVARGFCIWrapper(AlgorithmWrapper):
     def _collapse_to_summary(self, edges_raw, var_names, G) -> List[Edge]:
         """
         Collapse dynamic PAG edges to summary graph edges.
-        Uses the same logic as SVARFCIWrapper.
+        Uses the same logic as SVARFCIWrapper, including lag tracking.
         """
         from svar_fci.graph import NULL, CIRCLE, ARROW, TAIL
         
-        # Group edges by variable pair
+        # Group edges by variable pair, tracking lags and marks
+        # pair_edges[(A, B)] = [(lag, mark_A, mark_B), ...]
         pair_edges = {}
         
         for u, v, m_u, m_v in edges_raw:
@@ -308,12 +323,17 @@ class SVARGFCIWrapper(AlgorithmWrapper):
             
             u_var = "_".join(u_parts[:-1])
             v_var = "_".join(v_parts[:-1])
+            u_lag = int(u_parts[-1])
+            v_lag = int(v_parts[-1])
             
             # Ignore self-lags
             if u_var == v_var:
                 continue
             
-            # Normalize pair
+            # Use max lag as the representative lag for this edge
+            edge_lag = max(u_lag, v_lag)
+            
+            # Normalize pair (alphabetically)
             if u_var < v_var:
                 key = (u_var, v_var)
                 marks = (m_u, m_v)
@@ -323,7 +343,7 @@ class SVARGFCIWrapper(AlgorithmWrapper):
             
             if key not in pair_edges:
                 pair_edges[key] = []
-            pair_edges[key].append(marks)
+            pair_edges[key].append((edge_lag, marks[0], marks[1]))
         
         # Classify relationships
         summary_edges = []
@@ -334,13 +354,17 @@ class SVARGFCIWrapper(AlgorithmWrapper):
         def is_tail(m):
             return m == TAIL or m == NULL
         
-        for (A, B), mark_list in pair_edges.items():
+        for (A, B), lag_mark_list in pair_edges.items():
             has_tail_A_arrow_B = False
             has_tail_B_arrow_A = False
             has_arrow_at_A = False
             has_arrow_at_B = False
             
-            for mA, mB in mark_list:
+            # Collect unique lags where edges exist
+            edge_lags = set()
+            
+            for lag, mA, mB in lag_mark_list:
+                edge_lags.add(lag)
                 if is_arrow(mA):
                     has_arrow_at_A = True
                 if is_arrow(mB):
@@ -350,20 +374,23 @@ class SVARGFCIWrapper(AlgorithmWrapper):
                 if is_tail(mB) and is_arrow(mA):
                     has_tail_B_arrow_A = True
             
+            # Sort lags in descending order (like tigramite does)
+            sorted_lags = sorted(edge_lags, reverse=True)
+            
             # Classification logic
             is_A_to_B = has_tail_A_arrow_B and not has_arrow_at_A
             is_B_to_A = has_tail_B_arrow_A and not has_arrow_at_B
             
             if is_A_to_B:
-                summary_edges.append(Edge(A, B, "directed"))
+                summary_edges.append(Edge(A, B, "directed", lags=sorted_lags))
             elif is_B_to_A:
-                summary_edges.append(Edge(B, A, "directed"))
+                summary_edges.append(Edge(B, A, "directed", lags=sorted_lags))
             else:
                 # Ambiguous - check if bidirected or undirected
                 if has_arrow_at_A and has_arrow_at_B:
-                    summary_edges.append(Edge(A, B, "bidirected"))
+                    summary_edges.append(Edge(A, B, "bidirected", lags=sorted_lags))
                 else:
-                    summary_edges.append(Edge(A, B, "undirected"))
+                    summary_edges.append(Edge(A, B, "undirected", lags=sorted_lags))
         
         return summary_edges
 
@@ -466,6 +493,7 @@ class LPCMCIWrapper(AlgorithmWrapper):
     def _collapse_to_summary(self, graph: np.ndarray, var_names: List[str]) -> List[Edge]:
         """
         Collapse the 3D DPAG to a summary graph.
+        Now also tracks which lags each edge appears at for plotting.
         
         LPCMCI edge notation:
         - '-->' : directed edge (tail to arrow)
@@ -480,8 +508,8 @@ class LPCMCIWrapper(AlgorithmWrapper):
         N = len(var_names)
         tau_max = graph.shape[2] - 1
         
-        # Group edges by variable pair (ignoring lag)
-        pair_info = {}  # (i, j) -> {'has_arrow_at_i', 'has_arrow_at_j', 'has_tail_at_i', 'has_tail_at_j'}
+        # Group edges by variable pair, tracking lags
+        pair_info = {}  # (i, j) -> {'has_arrow_at_i', ..., 'lags': set()}
         
         for i in range(N):
             for j in range(N):
@@ -513,7 +541,11 @@ class LPCMCIWrapper(AlgorithmWrapper):
                             'has_tail_at_j': False,
                             'has_circle_at_i': False,
                             'has_circle_at_j': False,
+                            'lags': set(),
                         }
+                    
+                    # Track the lag
+                    pair_info[key]['lags'].add(tau)
                     
                     # For key = (i, j) with i < j:
                     # src_mark is the mark at i, tgt_mark is the mark at j
@@ -538,6 +570,9 @@ class LPCMCIWrapper(AlgorithmWrapper):
             var_i = var_names[i]
             var_j = var_names[j]
             
+            # Sort lags in descending order (like tigramite does)
+            sorted_lags = sorted(info['lags'], reverse=True)
+            
             # Classification logic (similar to SVARFCIWrapper)
             # i --> j: tail at i, arrow at j, no arrow at i
             # i <-- j: arrow at i, tail at j, no arrow at j
@@ -548,17 +583,17 @@ class LPCMCIWrapper(AlgorithmWrapper):
             is_j_to_i = info['has_tail_at_j'] and info['has_arrow_at_i'] and not info['has_arrow_at_j']
             
             if is_i_to_j and not is_j_to_i:
-                summary_edges.append(Edge(var_i, var_j, "directed"))
+                summary_edges.append(Edge(var_i, var_j, "directed", lags=sorted_lags))
             elif is_j_to_i and not is_i_to_j:
-                summary_edges.append(Edge(var_j, var_i, "directed"))
+                summary_edges.append(Edge(var_j, var_i, "directed", lags=sorted_lags))
             elif info['has_arrow_at_i'] and info['has_arrow_at_j']:
-                summary_edges.append(Edge(var_i, var_j, "bidirected"))
+                summary_edges.append(Edge(var_i, var_j, "bidirected", lags=sorted_lags))
             elif info['has_circle_at_i'] or info['has_circle_at_j']:
                 # Uncertain edge - treat as undirected for comparison
-                summary_edges.append(Edge(var_i, var_j, "undirected"))
+                summary_edges.append(Edge(var_i, var_j, "undirected", lags=sorted_lags))
             else:
                 # Default to undirected
-                summary_edges.append(Edge(var_i, var_j, "undirected"))
+                summary_edges.append(Edge(var_i, var_j, "undirected", lags=sorted_lags))
         
         return summary_edges
     
@@ -606,7 +641,8 @@ class CausalLearnPCWrapper(AlgorithmWrapper):
     def fit(self, data: np.ndarray, var_names: List[str]) -> StandardGraph:
         from causallearn.search.ConstraintBased.PC import pc
         
-        cg = pc(data, alpha=self.alpha, indep_test=self.indep_test)
+        # causal-learn requires Python float, not numpy.float64
+        cg = pc(data, alpha=float(self.alpha), indep_test=self.indep_test)
         return self._convert_causallearn_graph(cg.G, var_names)
     
     def _convert_causallearn_graph(self, cg_graph, var_names: List[str]) -> StandardGraph:
@@ -664,7 +700,8 @@ class CausalLearnFCIWrapper(AlgorithmWrapper):
     def fit(self, data: np.ndarray, var_names: List[str]) -> StandardGraph:
         from causallearn.search.ConstraintBased.FCI import fci
         
-        G, edges = fci(data, alpha=self.alpha, indep_test=self.indep_test)
+        # causal-learn requires Python float, not numpy.float64
+        G, edges = fci(data, alpha=float(self.alpha), indep_test=self.indep_test)
         return self._convert_causallearn_graph(G, var_names)
     
     def _convert_causallearn_graph(self, cg_graph, var_names: List[str]) -> StandardGraph:
@@ -898,4 +935,230 @@ def get_tetrad_algorithms(alpha: float = 0.05) -> List[AlgorithmWrapper]:
         TetradFCIWrapper(alpha=alpha),
         TetradFGESWrapper(),
     ]
+
+
+# =============================================================================
+# tsFCI Wrapper (via rpy2 and R)
+# =============================================================================
+
+class TSFCIWrapper(AlgorithmWrapper):
+    """
+    Wrapper for tsFCI algorithm via R (using rpy2).
+    
+    tsFCI (time series FCI) is an adaptation of FCI for time series data
+    that accounts for temporal structure and latent confounders.
+    
+    Requires:
+    - rpy2 Python package
+    - R with required packages
+    - tsFCI R code from Doris Entner (RCode_TETRADjar folder)
+    
+    Reference:
+    Entner, D. & Hoyer, P.O. "On Causal Discovery from Time Series Data 
+    using FCI." PGM 2010.
+    """
+    
+    def __init__(
+        self, 
+        sig: float = 0.05, 
+        tau: int = 2,
+        r_code_path: str = None
+    ):
+        """
+        Args:
+            sig: Significance level for CI tests (alpha)
+            tau: Number of time increments back to consider (like max_lag)
+            r_code_path: Path to RCode_TETRADjar folder containing start_up.R
+        """
+        self.sig = sig
+        self.tau = tau
+        self.r_code_path = r_code_path
+    
+    @property
+    def name(self) -> str:
+        return f"tsFCI(α={self.sig}, τ={self.tau})"
+    
+    def fit(self, data: np.ndarray, var_names: List[str]) -> StandardGraph:
+        """Run tsFCI via R and convert to summary graph."""
+        import tempfile
+        import os
+        import pandas as pd
+        
+        if self.r_code_path is None:
+            raise ValueError(
+                "tsFCI requires r_code_path to be set. "
+                "Please set TSFCI_R_PATH in run_comparison.py to the path of RCode_TETRADjar folder."
+            )
+        
+        # Check that the R code path exists
+        if not os.path.exists(self.r_code_path):
+            raise ValueError(
+                f"tsFCI R code path does not exist: {self.r_code_path}\n"
+                "Please download from https://sites.google.com/site/daborisov/tsfci"
+            )
+        
+        try:
+            import rpy2.robjects as ro
+            from rpy2.robjects import numpy2ri
+            from rpy2.robjects.conversion import localconverter
+        except ImportError:
+            raise ImportError(
+                "tsFCI requires rpy2. Install with: pip install rpy2"
+            )
+        
+        # Save Python's current working directory
+        # (R's setwd() can sometimes affect Python's cwd via rpy2)
+        original_cwd = os.getcwd()
+        
+        # Create temporary CSV file with the data
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+            temp_csv_path = f.name
+            # Add a dummy first column (date/index) since tsFCI drops the first column
+            df = pd.DataFrame(data, columns=var_names)
+            df.insert(0, 'index', range(len(df)))
+            df.to_csv(f, index=False)
+        
+        try:
+            # Set up R environment
+            r_path = self.r_code_path.replace('\\', '/')
+            ro.r(f"setwd('{r_path}')")
+            ro.r('options(encoding="latin1")')
+            ro.r('options(warn=-1)')  # Suppress warnings
+            
+            # Source the startup script
+            ro.r("source('start_up.R')")
+            start_up = ro.globalenv['start_up']
+            start_up()
+            
+            # Load data and run tsFCI
+            # The function returns the PAG matrix directly
+            csv_path_r = temp_csv_path.replace('\\', '/')
+            ro.r(f'my_data <- read.csv("{csv_path_r}", stringsAsFactors=FALSE, fileEncoding="latin1")')
+            ro.r('tsfci_data <- my_data[, -1]')  # Drop first column (index)
+            ro.r(f"pag_result <- realData_tsfci(data=tsfci_data, sig={self.sig}, nrep={self.tau+1}, makeplot=FALSE)")
+            
+            # Get the PAG matrix from R using localconverter (new rpy2 API)
+            with localconverter(ro.default_converter + numpy2ri.converter):
+                pag_matrix = np.array(ro.r('pag_result'))
+            
+            # Convert PAG matrix to summary graph
+            summary_edges = self._convert_pag_to_summary(pag_matrix, var_names)
+            
+            return StandardGraph(nodes=var_names, edges=summary_edges)
+            
+        except Exception as e:
+            raise RuntimeError(f"tsFCI failed: {str(e)}")
+            
+        finally:
+            # Clean up temporary CSV
+            if os.path.exists(temp_csv_path):
+                os.remove(temp_csv_path)
+            # Restore Python's working directory
+            os.chdir(original_cwd)
+    
+    def _convert_pag_to_summary(self, pag: np.ndarray, var_names: List[str]) -> List[Edge]:
+        """
+        Convert tsFCI PAG matrix to summary graph edges.
+        
+        The PAG matrix is a square matrix where:
+        - pag[i,j] = 0: no edge mark
+        - pag[i,j] = 1: tail mark at node j (for edge i-j)
+        - pag[i,j] = 2: arrow mark at node j
+        - pag[i,j] = 3: circle mark at node j (in R: "odot")
+        
+        The matrix is for a lag-expanded graph where node indices are:
+        - Nodes 0 to n-1: variables at lag 0 (t)
+        - Nodes n to 2n-1: variables at lag 1 (t-1)
+        - etc.
+        
+        We collapse this to a summary graph over the original n variables.
+        Now also tracks which lags each edge appears at for plotting.
+        """
+        num_vars = len(var_names)
+        num_nodes = pag.shape[0]
+        
+        if num_nodes == 0:
+            return []
+        
+        # Collect edge info by variable pair, now tracking lags
+        pair_info = {}  # (var_i, var_j) -> {'arrow_at_src', ..., 'lags': set()}
+        
+        for i in range(num_nodes):
+            for j in range(i + 1, num_nodes):
+                # Check if there's an edge
+                mark_at_j = int(pag[i, j])  # mark at node j for edge i-j
+                mark_at_i = int(pag[j, i])  # mark at node i for edge i-j
+                
+                if mark_at_i == 0 and mark_at_j == 0:
+                    continue  # No edge
+                
+                # Decode variable and lag from node indices
+                var_i = i % num_vars
+                var_j = j % num_vars
+                lag_i = i // num_vars
+                lag_j = j // num_vars
+                
+                # Use max lag as the representative lag for this edge
+                edge_lag = max(lag_i, lag_j)
+                
+                # Skip self-loops (same variable across time)
+                if var_i == var_j:
+                    continue
+                
+                # Normalize pair key (smaller variable index first)
+                if var_i < var_j:
+                    key = (var_i, var_j)
+                    src_mark, tgt_mark = mark_at_i, mark_at_j
+                else:
+                    key = (var_j, var_i)
+                    src_mark, tgt_mark = mark_at_j, mark_at_i
+                
+                if key not in pair_info:
+                    pair_info[key] = {
+                        'has_arrow_at_src': False,
+                        'has_arrow_at_tgt': False,
+                        'has_tail_at_src': False,
+                        'has_tail_at_tgt': False,
+                        'lags': set(),
+                    }
+                
+                # Track the lag
+                pair_info[key]['lags'].add(edge_lag)
+                
+                # Record marks
+                # Mark values: 1=tail, 2=arrow, 3=circle
+                if src_mark == 2:
+                    pair_info[key]['has_arrow_at_src'] = True
+                elif src_mark == 1:
+                    pair_info[key]['has_tail_at_src'] = True
+                
+                if tgt_mark == 2:
+                    pair_info[key]['has_arrow_at_tgt'] = True
+                elif tgt_mark == 1:
+                    pair_info[key]['has_tail_at_tgt'] = True
+        
+        # Convert to summary edges
+        summary_edges = []
+        
+        for (var_i, var_j), info in pair_info.items():
+            name_i = var_names[var_i]
+            name_j = var_names[var_j]
+            
+            # Sort lags in descending order (like tigramite does)
+            sorted_lags = sorted(info['lags'], reverse=True)
+            
+            # Classification logic (same as SVAR-FCI)
+            is_i_to_j = info['has_tail_at_src'] and info['has_arrow_at_tgt'] and not info['has_arrow_at_src']
+            is_j_to_i = info['has_tail_at_tgt'] and info['has_arrow_at_src'] and not info['has_arrow_at_tgt']
+            
+            if is_i_to_j and not is_j_to_i:
+                summary_edges.append(Edge(name_i, name_j, "directed", lags=sorted_lags))
+            elif is_j_to_i and not is_i_to_j:
+                summary_edges.append(Edge(name_j, name_i, "directed", lags=sorted_lags))
+            elif info['has_arrow_at_src'] and info['has_arrow_at_tgt']:
+                summary_edges.append(Edge(name_i, name_j, "bidirected", lags=sorted_lags))
+            else:
+                summary_edges.append(Edge(name_i, name_j, "undirected", lags=sorted_lags))
+        
+        return summary_edges
 

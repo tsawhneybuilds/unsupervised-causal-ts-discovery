@@ -74,17 +74,50 @@ def icf_bic_score(Z: np.ndarray, G: DynamicPAG):
     Z: lagged data (n, p_nodes)
     G: DynamicPAG
     """
-    n = Z.shape[0]
+    # Validate input
+    if Z is None or Z.size == 0:
+        return {"loglik": -np.inf, "df": 0, "bic": np.inf}
+    
+    # Ensure Z is 2D
+    if Z.ndim == 1:
+        Z = Z.reshape(-1, 1)
+    
+    n, p = Z.shape
+    
+    # Need at least 2 variables for covariance matrix
+    if p < 2:
+        return {"loglik": -np.inf, "df": 0, "bic": np.inf}
+    
     S = np.cov(Z, rowvar=False)
+    
+    # Ensure S is 2D (np.cov can return scalar for 1D input)
+    if S.ndim == 0:
+        S = np.array([[S]])
+    elif S.ndim == 1:
+        S = S.reshape(-1, 1)
+    
     amat = pag_to_mag(G)
+    
+    # Validate matrices are not empty
+    if S.size == 0 or amat.size == 0:
+        return {"loglik": -np.inf, "df": 0, "bic": np.inf}
     
     with tempfile.TemporaryDirectory() as tmpdir:
         s_path = os.path.join(tmpdir, "S.csv")
         amat_path = os.path.join(tmpdir, "amat.csv")
         out_path = os.path.join(tmpdir, "out.csv")
         
+        # Write CSV files with explicit flush
         np.savetxt(s_path, S, delimiter=",")
         np.savetxt(amat_path, amat, delimiter=",", fmt="%d")
+        
+        # Verify files were written correctly
+        if not os.path.exists(s_path) or os.path.getsize(s_path) == 0:
+            print(f"ERROR: S.csv not written properly. Size: {os.path.getsize(s_path) if os.path.exists(s_path) else 'N/A'}")
+            return {"loglik": -np.inf, "df": 0, "bic": np.inf}
+        if not os.path.exists(amat_path) or os.path.getsize(amat_path) == 0:
+            print(f"ERROR: amat.csv not written properly. Size: {os.path.getsize(amat_path) if os.path.exists(amat_path) else 'N/A'}")
+            return {"loglik": -np.inf, "df": 0, "bic": np.inf}
         
         r_script = f"""
         # Helper to ensure packages are installed

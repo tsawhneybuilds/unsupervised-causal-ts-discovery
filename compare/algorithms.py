@@ -369,6 +369,226 @@ class SVARGFCIWrapper(AlgorithmWrapper):
 
 
 # =============================================================================
+# LPCMCI Wrapper (tigramite)
+# =============================================================================
+
+class LPCMCIWrapper(AlgorithmWrapper):
+    """
+    Wrapper for tigramite's LPCMCI algorithm.
+    
+    LPCMCI (Latent PC-MCI) is designed for causal discovery in time series
+    with potential latent confounders. It outputs a lag-specific DPAG
+    (directed partial ancestral graph).
+    
+    Reference:
+    Gerhardus, A. & Runge, J. "High-recall causal discovery for autocorrelated 
+    time series with latent confounders." NeurIPS 2020.
+    """
+    
+    def __init__(
+        self, 
+        alpha: float = 0.05, 
+        max_lag: int = 2,
+        cond_ind_test: str = 'regression'
+    ):
+        """
+        Args:
+            alpha: Significance level for CI tests (pc_alpha in LPCMCI)
+            max_lag: Maximum time lag to consider (tau_max in LPCMCI)
+            cond_ind_test: Type of CI test - 'parcorr', 'regression', or 'cmiknn'
+        """
+        self.alpha = alpha
+        self.max_lag = max_lag  # This is tau_max in LPCMCI
+        self.cond_ind_test = cond_ind_test
+    
+    @property
+    def name(self) -> str:
+        return f"LPCMCI(α={self.alpha}, τ={self.max_lag})"
+    
+    def fit(self, data: np.ndarray, var_names: List[str]) -> StandardGraph:
+        """Run LPCMCI and collapse to summary graph."""
+        # Import tigramite modules
+        import sys
+        import os
+        
+        # Add tigramite path if not already there
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        tigramite_path = os.path.join(project_root, 'Causal_with_Tigramite')
+        if tigramite_path not in sys.path:
+            sys.path.insert(0, tigramite_path)
+        
+        from tigramite import data_processing as pp
+        from tigramite.lpcmci import LPCMCI
+        from tigramite.independence_tests.parcorr import ParCorr
+        from tigramite.independence_tests.regressionCI import RegressionCI
+        from tigramite.independence_tests.cmiknn import CMIknn
+        
+        # Create tigramite DataFrame
+        # data_type: 0 = continuous, 1 = discrete. Assume all continuous for numeric data.
+        dataframe = pp.DataFrame(
+            data, 
+            var_names=var_names,
+            data_type=np.zeros(data.shape, dtype='int')
+        )
+        
+        # Create conditional independence test
+        if self.cond_ind_test == 'parcorr':
+            ci_test = ParCorr(significance='analytic')
+        elif self.cond_ind_test == 'regression':
+            ci_test = RegressionCI(significance='analytic')
+        elif self.cond_ind_test == 'cmiknn':
+            ci_test = CMIknn(significance='shuffle_test')
+        else:
+            # Default to RegressionCI
+            ci_test = RegressionCI(significance='analytic')
+        
+        # Create and run LPCMCI
+        lpcmci = LPCMCI(
+            dataframe=dataframe,
+            cond_ind_test=ci_test,
+            verbosity=0
+        )
+        
+        results = lpcmci.run_lpcmci(
+            tau_max=self.max_lag,
+            pc_alpha=self.alpha
+        )
+        
+        # Get the 3D graph array: shape (N, N, tau_max+1)
+        # graph[i,j,tau] contains edge string from X^i_{t-tau} to X^j_t
+        graph = results['graph']
+        
+        # Collapse to summary graph
+        summary_edges = self._collapse_to_summary(graph, var_names)
+        
+        return StandardGraph(nodes=var_names, edges=summary_edges)
+    
+    def _collapse_to_summary(self, graph: np.ndarray, var_names: List[str]) -> List[Edge]:
+        """
+        Collapse the 3D DPAG to a summary graph.
+        
+        LPCMCI edge notation:
+        - '-->' : directed edge (tail to arrow)
+        - '<--' : directed edge (arrow to tail, reverse)
+        - '<->' : bidirected edge
+        - 'o->' : circle at source, arrow at target
+        - '<-o' : arrow at source, circle at target
+        - 'o-o' : circle at both ends
+        - 'x-x' : unknown edge
+        - ''    : no edge
+        """
+        N = len(var_names)
+        tau_max = graph.shape[2] - 1
+        
+        # Group edges by variable pair (ignoring lag)
+        pair_info = {}  # (i, j) -> {'has_arrow_at_i', 'has_arrow_at_j', 'has_tail_at_i', 'has_tail_at_j'}
+        
+        for i in range(N):
+            for j in range(N):
+                if i == j:
+                    continue  # Skip self-loops at lag 0
+                    
+                for tau in range(tau_max + 1):
+                    edge = graph[i, j, tau]
+                    if edge == '' or edge == '   ':
+                        continue
+                    
+                    # Normalize pair key (smaller index first)
+                    if i < j:
+                        key = (i, j)
+                        # Edge is from X^i_{t-tau} to X^j_t
+                        # So marks are: source_mark-middle-target_mark
+                        src_mark, tgt_mark = self._parse_edge_marks(edge)
+                    else:
+                        key = (j, i)
+                        # Need to reverse the interpretation
+                        src_mark, tgt_mark = self._parse_edge_marks(edge)
+                        src_mark, tgt_mark = tgt_mark, src_mark
+                    
+                    if key not in pair_info:
+                        pair_info[key] = {
+                            'has_arrow_at_i': False,
+                            'has_arrow_at_j': False,
+                            'has_tail_at_i': False,
+                            'has_tail_at_j': False,
+                            'has_circle_at_i': False,
+                            'has_circle_at_j': False,
+                        }
+                    
+                    # For key = (i, j) with i < j:
+                    # src_mark is the mark at i, tgt_mark is the mark at j
+                    if src_mark == '>':
+                        pair_info[key]['has_arrow_at_i'] = True
+                    elif src_mark == '-':
+                        pair_info[key]['has_tail_at_i'] = True
+                    elif src_mark == 'o':
+                        pair_info[key]['has_circle_at_i'] = True
+                    
+                    if tgt_mark == '>':
+                        pair_info[key]['has_arrow_at_j'] = True
+                    elif tgt_mark == '-':
+                        pair_info[key]['has_tail_at_j'] = True
+                    elif tgt_mark == 'o':
+                        pair_info[key]['has_circle_at_j'] = True
+        
+        # Convert to summary edges
+        summary_edges = []
+        
+        for (i, j), info in pair_info.items():
+            var_i = var_names[i]
+            var_j = var_names[j]
+            
+            # Classification logic (similar to SVARFCIWrapper)
+            # i --> j: tail at i, arrow at j, no arrow at i
+            # i <-- j: arrow at i, tail at j, no arrow at j
+            # i <-> j: arrow at both
+            # i --- j: tail at both (or uncertain)
+            
+            is_i_to_j = info['has_tail_at_i'] and info['has_arrow_at_j'] and not info['has_arrow_at_i']
+            is_j_to_i = info['has_tail_at_j'] and info['has_arrow_at_i'] and not info['has_arrow_at_j']
+            
+            if is_i_to_j and not is_j_to_i:
+                summary_edges.append(Edge(var_i, var_j, "directed"))
+            elif is_j_to_i and not is_i_to_j:
+                summary_edges.append(Edge(var_j, var_i, "directed"))
+            elif info['has_arrow_at_i'] and info['has_arrow_at_j']:
+                summary_edges.append(Edge(var_i, var_j, "bidirected"))
+            elif info['has_circle_at_i'] or info['has_circle_at_j']:
+                # Uncertain edge - treat as undirected for comparison
+                summary_edges.append(Edge(var_i, var_j, "undirected"))
+            else:
+                # Default to undirected
+                summary_edges.append(Edge(var_i, var_j, "undirected"))
+        
+        return summary_edges
+    
+    def _parse_edge_marks(self, edge: str) -> Tuple[str, str]:
+        """
+        Parse LPCMCI edge string to extract source and target marks.
+        
+        Edge format: 'source_mark-middle-target_mark'
+        Examples: '-->', '<--', '<->', 'o->', '<-o', 'o-o', 'x-x'
+        
+        Returns: (source_mark, target_mark)
+        """
+        edge = edge.strip()
+        if len(edge) != 3:
+            return ('-', '-')
+        
+        src_mark = edge[0]  # '<', '-', 'o', 'x'
+        tgt_mark = edge[2]  # '>', '-', 'o', 'x'
+        
+        # Normalize: '<' means arrow pointing left (toward source)
+        # '>' means arrow pointing right (toward target)
+        if src_mark == '<':
+            src_mark = '>'  # Arrow at source
+        if tgt_mark == '<':
+            tgt_mark = '>'  # This shouldn't happen in normal notation
+        
+        return (src_mark, tgt_mark)
+
+
+# =============================================================================
 # causal-learn Wrappers
 # =============================================================================
 
@@ -632,7 +852,7 @@ def get_default_algorithms(alpha: float = 0.05, max_lag: int = 2) -> List[Algori
     
     Args:
         alpha: Significance level for constraint-based methods
-        max_lag: Maximum lag for SVAR-FCI and SVAR-GFCI
+        max_lag: Maximum lag for SVAR-FCI, SVAR-GFCI, and LPCMCI
     
     Returns:
         List of AlgorithmWrapper instances
@@ -640,9 +860,26 @@ def get_default_algorithms(alpha: float = 0.05, max_lag: int = 2) -> List[Algori
     return [
         SVARFCIWrapper(alpha=alpha, max_lag=max_lag),
         SVARGFCIWrapper(alpha=alpha, max_lag=max_lag),
+        LPCMCIWrapper(alpha=alpha, max_lag=max_lag),
         CausalLearnPCWrapper(alpha=alpha),
         CausalLearnFCIWrapper(alpha=alpha),
         CausalLearnGESWrapper(),
+    ]
+
+
+def get_tigramite_algorithms(alpha: float = 0.05, max_lag: int = 2) -> List[AlgorithmWrapper]:
+    """
+    Get a list of tigramite algorithm wrappers.
+    
+    Args:
+        alpha: Significance level for constraint-based methods
+        max_lag: Maximum lag (tau_max)
+    
+    Returns:
+        List of AlgorithmWrapper instances
+    """
+    return [
+        LPCMCIWrapper(alpha=alpha, max_lag=max_lag),
     ]
 
 

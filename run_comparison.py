@@ -44,6 +44,7 @@ from compare.graph_io import (
 from compare.algorithms import (
     SVARFCIWrapper,
     SVARGFCIWrapper,
+    LPCMCIWrapper,
     CausalLearnPCWrapper,
     CausalLearnFCIWrapper,
     CausalLearnGESWrapper,
@@ -51,7 +52,8 @@ from compare.algorithms import (
     TetradFCIWrapper,
     TetradFGESWrapper,
     get_default_algorithms,
-    get_tetrad_algorithms
+    get_tetrad_algorithms,
+    get_tigramite_algorithms
 )
 from compare.runner import ComparisonRunner, run_comparison, run_comparison_from_files
 
@@ -67,13 +69,13 @@ from compare.runner import ComparisonRunner, run_comparison, run_comparison_from
 DATASETS = {
     # === Monetary Shock Datasets ===
     'monetary_shock': {
-        'data': 'data/final_monetaryshock_clean.csv',
+        'data': 'data/monetaryshock_latest_final.csv',
         'reference': 'data/reference_graphs/monetary_shock_graph.txt',
         'var_map': 'data/reference_graphs/variable_maps.json',
         'description': 'Monetary Policy Transmission DAG - uses exact column names'
     },
     'monetary_shock_friendly': {
-        'data': 'data/final_monetaryshock_clean.csv',
+        'data': 'data/monetaryshock_latest_final.csv',
         'reference': 'data/reference_graphs/monetary_shock_graph_friendly.txt',
         'var_map': 'data/reference_graphs/variable_maps.json',
         'description': 'Monetary Policy Transmission DAG - uses friendly names with mapping'
@@ -148,20 +150,17 @@ Examples:
   # List available datasets
   python run_comparison.py --list
 
-  # Run comparison on a named dataset
+  # Run comparison on a named dataset (uses BIC model selection by default)
   python run_comparison.py --dataset monetary_shock
 
   # Run with custom data and reference graph
   python run_comparison.py --data data/my_data.csv --reference data/my_graph.txt
 
-  # Run with specific alpha and save results
-  python run_comparison.py --dataset monetary_shock --alpha 0.01 --output data/outputs/
-
-  # Use BIC-based model selection to auto-select alpha and max-lag
-  python run_comparison.py --dataset monetary_shock --use-selection
-
   # Custom grid for model selection
-  python run_comparison.py --dataset monetary_shock --use-selection --alpha-grid 0.01,0.05,0.10 --lag-grid 1,2,3
+  python run_comparison.py --dataset monetary_shock --alpha-grid 0.01,0.05,0.10 --lag-grid 1,2,3
+
+  # Disable model selection and use fixed alpha/max-lag
+  python run_comparison.py --dataset monetary_shock --no-selection --alpha 0.01 --max-lag 3
 
   # Include Tetrad algorithms (requires py-tetrad)
   python run_comparison.py --dataset monetary_shock --include-tetrad
@@ -224,10 +223,10 @@ Examples:
     )
     
     parser.add_argument(
-        '--use-selection', '-S',
+        '--no-selection',
         action='store_true',
-        help='Use BIC-based model selection for SVAR-FCI to auto-select alpha and max-lag, '
-             'then apply selected alpha to other algorithms'
+        help='Disable BIC-based model selection (use fixed --alpha and --max-lag instead). '
+             'By default, SVAR-FCI model selection is used to auto-select alpha and max-lag.'
     )
     
     parser.add_argument(
@@ -274,7 +273,7 @@ Examples:
         if config.get('description'):
             print(f"Description: {config['description']}")
     else:
-        data_path = args.data or 'data/final_monetaryshock_clean.csv'
+        data_path = args.data or 'data/monetaryshock_latest_final.csv'
         reference_path = args.reference
         var_map_path = args.var_map
         dataset_name = None
@@ -354,12 +353,16 @@ Examples:
     data_vars = [v for v in var_names if v in reference_graph.nodes]
     data_filtered = df[data_vars].values
     
+    print(f"Data for model selection: {data_filtered.shape[0]} samples, {len(data_vars)} variables")
+    print(f"Variables: {data_vars}")
+    
     # Parse grid arguments
     alpha_grid = np.array([float(x.strip()) for x in args.alpha_grid.split(',')])
     lag_grid = [int(x.strip()) for x in args.lag_grid.split(',')]
     
     # Determine alpha to use for algorithms
-    if args.use_selection:
+    # By default, use BIC-based model selection (unless --no-selection is specified)
+    if not args.no_selection:
         print("\n" + "="*60)
         print("Running SVAR-FCI model selection to determine optimal parameters...")
         print(f"Alpha grid: {alpha_grid}")
@@ -383,8 +386,10 @@ Examples:
         use_alpha = selected_alpha
         use_max_lag = selected_p
     else:
+        # Use fixed parameters from CLI
         use_alpha = args.alpha
         use_max_lag = args.max_lag
+        print(f"\nUsing fixed parameters: alpha={use_alpha}, max_lag={use_max_lag}")
     
     # Set up algorithms with the determined alpha
     algorithms = [
@@ -394,6 +399,10 @@ Examples:
             use_selection=False  # Already selected above
         ),
         SVARGFCIWrapper(
+            alpha=use_alpha,
+            max_lag=use_max_lag
+        ),
+        LPCMCIWrapper(
             alpha=use_alpha,
             max_lag=use_max_lag
         ),

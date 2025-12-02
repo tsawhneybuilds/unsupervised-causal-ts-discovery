@@ -13,6 +13,15 @@ import sys
 import subprocess
 import platform
 
+# =============================================================================
+# Tigramite path setup
+# =============================================================================
+# Add the Causal_with_Tigramite folder to sys.path so tigramite can be imported
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_tigramite_path = os.path.join(_project_root, 'Causal_with_Tigramite')
+if _tigramite_path not in sys.path and os.path.exists(_tigramite_path):
+    sys.path.insert(0, _tigramite_path)
+
 # JPype and Tetrad initialization
 _jvm_started = False
 
@@ -29,13 +38,41 @@ def find_java_home():
     if java_home and os.path.exists(java_home):
         return java_home
     
-    # 2. On macOS, use /usr/libexec/java_home
+    # 2. On ARM macOS, check known ARM Java installations FIRST
+    #    This prevents picking up x86_64 Java from Homebrew Intel
+    if platform.system() == 'Darwin' and platform.machine() == 'arm64':
+        # Known ARM Java 21 installation paths (most common first)
+        arm_java_paths = [
+            # Eclipse Temurin (ARM)
+            '/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home',
+            # Amazon Corretto (ARM)
+            '/Library/Java/JavaVirtualMachines/amazon-corretto-21.jdk/Contents/Home',
+            # Zulu (ARM)
+            '/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home',
+            # Oracle GraalVM (ARM)
+            '/Library/Java/JavaVirtualMachines/graalvm-21/Contents/Home',
+            # Homebrew ARM (Apple Silicon path)
+            '/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home',
+            '/opt/homebrew/Cellar/openjdk@21/21.0.2/libexec/openjdk.jdk/Contents/Home',
+        ]
+        
+        for path in arm_java_paths:
+            if os.path.exists(path):
+                return path
+        
+        # Also check /Library/Java/JavaVirtualMachines/ for any Java 21
+        jvm_dir = '/Library/Java/JavaVirtualMachines'
+        if os.path.exists(jvm_dir):
+            for name in os.listdir(jvm_dir):
+                if '21' in name:
+                    candidate = os.path.join(jvm_dir, name, 'Contents', 'Home')
+                    if os.path.exists(candidate):
+                        return candidate
+    
+    # 3. On macOS, use /usr/libexec/java_home (but skip x86_64 on ARM)
     if platform.system() == 'Darwin':
-        # Get current architecture
         is_arm = platform.machine() == 'arm64'
         
-        # Try with version flag for Java 21, 17 (Tetrad needs Java 21+)
-        # Prefer native architecture over Rosetta
         for version in ['21', '17']:
             try:
                 result = subprocess.run(
@@ -47,11 +84,8 @@ def find_java_home():
                 if result.returncode == 0:
                     java_home = result.stdout.strip()
                     if java_home and os.path.exists(java_home):
-                        # Check if this is native architecture
-                        # x86_64 Javas are usually in /usr/local/Cellar (Homebrew Intel)
-                        # ARM Javas are usually in /Library/Java or /opt/homebrew
+                        # Skip x86_64 Java on ARM Mac
                         if is_arm and '/usr/local/Cellar/' in java_home:
-                            # This is likely x86_64 Java on ARM Mac, skip
                             continue
                         return java_home
             except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
@@ -68,7 +102,11 @@ def find_java_home():
             if result.returncode == 0:
                 java_home = result.stdout.strip()
                 if java_home and os.path.exists(java_home):
-                    return java_home
+                    # Still skip x86_64 on ARM
+                    if is_arm and '/usr/local/Cellar/' in java_home:
+                        pass  # Don't return this
+                    else:
+                        return java_home
         except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
             pass
     

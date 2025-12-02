@@ -1,8 +1,9 @@
 Graph Nodes:
-MORTGAGE30US;CreditSupply_logdiff;HousePrice_logdiff;Consumption_logdiff;Output_logdiff
+mortgage_rate;credit_logdiff;houseprices_logdiff;cons_logdiff;output_logdiff;policyrate
 
 Graph Edges:
-1. MORTGAGE30US --> HousePrice_logdiff
-2. CreditSupply_logdiff --> HousePrice_logdiff
-3. HousePrice_logdiff --> Consumption_logdiff
-4. Consumption_logdiff --> Output_logdiff
+1. mortgage_rate --> houseprices_logdiff
+2. credit_logdiff --> houseprices_logdiff
+3. houseprices_logdiff --> cons_logdiff
+4. cons_logdiff --> output_logdiff
+5. policyrate --> mortgage_rate

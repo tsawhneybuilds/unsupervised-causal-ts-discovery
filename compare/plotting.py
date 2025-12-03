@@ -364,17 +364,19 @@ def plot_graph_tigramite(
 def generate_plot_filename(
     algorithm_name: str,
     alpha: float,
-    output_dir: str = 'data/outputs'
+    output_dir: str = 'data/outputs',
+    dataset_name: Optional[str] = None
 ) -> str:
     """
     Generate a filename for a graph plot.
     
-    Format: algorithm_alpha_datetime.png
+    Format: algorithm_alpha_dataset_datetime.png
     
     Args:
         algorithm_name: Name of the algorithm
         alpha: Alpha value used
         output_dir: Directory to save the plot (converted to absolute path)
+        dataset_name: Optional dataset name to include in filename
     
     Returns:
         Full absolute path to the output file
@@ -386,11 +388,18 @@ def generate_plot_filename(
     # Format alpha value
     alpha_str = f"{alpha:.4f}".replace('.', 'p')
     
-    # Get current datetime
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    # Clean dataset name for filename
+    dataset_str = ''
+    if dataset_name:
+        safe_dataset = dataset_name.replace(' ', '_').replace('=', '_')
+        safe_dataset = ''.join(c for c in safe_dataset if c.isalnum() or c in '_-')
+        dataset_str = f"{safe_dataset}_"
+    
+    # Get current datetime (shortened format: YYYYMMDD_HHMM)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M')
     
     # Build filename
-    filename = f"{safe_name}_{alpha_str}_{timestamp}.png"
+    filename = f"{safe_name}_{alpha_str}_{dataset_str}{timestamp}.png"
     
     # Convert to absolute path to avoid issues with working directory changes
     # (e.g., when tsFCI changes R's working directory)

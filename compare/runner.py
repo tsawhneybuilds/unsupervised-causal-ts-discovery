@@ -207,7 +207,8 @@ class ComparisonRunner:
         output_dir: str = 'data/outputs',
         alpha: float = 0.05,
         max_lag: int = None,
-        var_name_map: Optional[dict] = None
+        var_name_map: Optional[dict] = None,
+        dataset_name: Optional[str] = None
     ):
         """
         Generate tigramite-style visualizations for all algorithm results.
@@ -224,6 +225,7 @@ class ComparisonRunner:
                      from edge lag information stored in each graph.
             var_name_map: Optional dict mapping variable names to display names
                          (e.g., {'MonetaryShock_RR': 'MonetaryShock'})
+            dataset_name: Optional dataset name to include in filename
         """
         # Use absolute path to avoid issues with working directory changes
         output_dir = os.path.abspath(output_dir)
@@ -244,7 +246,8 @@ class ComparisonRunner:
             save_path = generate_plot_filename(
                 algorithm_name=result.algorithm_name,
                 alpha=alpha,
-                output_dir=output_dir
+                output_dir=output_dir,
+                dataset_name=dataset_name
             )
             
             try:

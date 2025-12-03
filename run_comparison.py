@@ -543,6 +543,7 @@ Plotting:
             alpha=use_alpha,
             max_lag=use_max_lag,
             var_name_map=plot_var_map,
+            dataset_name=dataset_name,
         )
     
     return runner.get_results_table()

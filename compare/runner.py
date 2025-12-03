@@ -206,7 +206,8 @@ class ComparisonRunner:
         self, 
         output_dir: str = 'data/outputs',
         alpha: float = 0.05,
-        max_lag: int = None
+        max_lag: int = None,
+        var_name_map: Optional[dict] = None
     ):
         """
         Generate tigramite-style visualizations for all algorithm results.
@@ -214,12 +215,15 @@ class ComparisonRunner:
         Plots include:
         - PAG-style edge marks (arrows, circles, tails)
         - Lag labels showing at which time lags relationships were observed
+        - Adaptive node sizing to fit variable names inside circles
         
         Args:
             output_dir: Directory to save plot images
             alpha: Alpha value used (for filename)
             max_lag: Maximum lag for time series graphs. If None, auto-detected
                      from edge lag information stored in each graph.
+            var_name_map: Optional dict mapping variable names to display names
+                         (e.g., {'MonetaryShock_RR': 'MonetaryShock'})
         """
         # Use absolute path to avoid issues with working directory changes
         output_dir = os.path.abspath(output_dir)
@@ -227,6 +231,8 @@ class ComparisonRunner:
         
         if self.verbose:
             print(f"\nGenerating graph visualizations with PAG-style edges and lag labels...")
+            if var_name_map:
+                print(f"Using reference graph variable names for plots")
         
         for result in self.results:
             if result.error:
@@ -248,6 +254,7 @@ class ComparisonRunner:
                     var_names=result.graph.nodes,
                     save_name=save_path,
                     max_lag=max_lag,
+                    var_name_map=var_name_map,
                 )
                 if self.verbose:
                     print(f"  Saved: {save_path}")

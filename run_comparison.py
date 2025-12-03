@@ -86,7 +86,8 @@ from compare.graph_io import (
     create_standard_graph,
     load_variable_map,
     apply_variable_map,
-    print_variable_mapping
+    print_variable_mapping,
+    get_reverse_map
 )
 from compare.algorithms import (
     SVARFCIWrapper,
@@ -524,10 +525,24 @@ Plotting:
     
     # Generate plots if requested
     if args.plot:
+        # Get reverse mapping (data names -> graph names) for plotting
+        plot_var_map = None
+        if var_map_path and dataset_name:
+            var_map = load_variable_map(var_map_path, dataset_name)
+            if var_map:
+                # Reverse the mapping: data names -> graph names
+                plot_var_map = get_reverse_map(var_map)
+                if not args.quiet:
+                    print(f"\nUsing reference graph variable names for plots:")
+                    for data_name, graph_name in sorted(plot_var_map.items()):
+                        if data_name in data_vars:
+                            print(f"  {data_name} -> {graph_name}")
+        
         runner.plot_graphs(
             output_dir='data/outputs',
             alpha=use_alpha,
-            max_lag=use_max_lag
+            max_lag=use_max_lag,
+            var_name_map=plot_var_map,
         )
     
     return runner.get_results_table()

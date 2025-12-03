@@ -137,6 +137,7 @@ def plot_graph_tigramite(
     arrow_linewidth: float = 4.0,
     figsize: tuple = None,
     show_colorbar: bool = False,
+    var_name_map: Optional[dict] = None,
 ) -> None:
     """
     Plot a StandardGraph using tigramite's plot_graph function.
@@ -144,6 +145,7 @@ def plot_graph_tigramite(
     This function renders PAG-style graphs with:
     - Proper edge marks (arrows, circles, tails)
     - Lag labels on edges showing at which lags relationships exist
+    - Adaptive node sizing to fit variable names inside circles
     
     Args:
         graph: StandardGraph to visualize
@@ -153,6 +155,8 @@ def plot_graph_tigramite(
         arrow_linewidth: Width of arrow lines
         figsize: Figure size tuple (width, height)
         show_colorbar: Whether to show colorbars (default: False for cleaner plots)
+        var_name_map: Optional dict mapping current variable names to display names
+                     (e.g., {'MonetaryShock_RR': 'MonetaryShock'})
     """
     try:
         from Causal_with_Tigramite.tigramite import plotting as tp
@@ -169,16 +173,147 @@ def plot_graph_tigramite(
     if var_names is None:
         var_names = graph.nodes
     
+    # Apply variable name mapping if provided
+    if var_name_map:
+        display_names = [var_name_map.get(name, name) for name in var_names]
+    else:
+        display_names = var_names
+    
+    # Calculate adaptive node size and label size based on text width (Option B)
+    if display_names:
+        # First, determine appropriate font size based on label length
+        max_label_length = max(len(name) for name in display_names)
+        longest_label = max(display_names, key=len)
+        
+        # Scale label size inversely with label length to fit better
+        # Longer labels get smaller font size
+        if max_label_length <= 10:
+            node_label_size = 10
+        elif max_label_length <= 15:
+            node_label_size = 9
+        elif max_label_length <= 20:
+            node_label_size = 8
+        else:
+            node_label_size = max(7, 8 - (max_label_length - 20) * 0.1)
+        
+        # Calculate actual text width using matplotlib font metrics
+        # Create a temporary figure with similar setup to what tigramite will use
+        # Tigramite uses circular layout with coordinates typically in [-1, 1] range
+        temp_fig, temp_ax = plt.subplots(figsize=(10, 10))
+        temp_ax.set_xlim(-1.2, 1.2)  # Slightly larger to match typical tigramite setup
+        temp_ax.set_ylim(-1.2, 1.2)
+        temp_ax.set_aspect('equal')
+        
+        # Create text object to measure (centered)
+        text_obj = temp_ax.text(0, 0, longest_label, fontsize=node_label_size,
+                               horizontalalignment='center', verticalalignment='center',
+                               family='sans-serif')  # Match default matplotlib font
+        
+        # Get the renderer to measure text
+        temp_fig.canvas.draw()
+        renderer = temp_fig.canvas.get_renderer()
+        
+        # Get text bounding box in display coordinates (pixels)
+        bbox_display = text_obj.get_window_extent(renderer=renderer)
+        text_width_display = bbox_display.width
+        text_height_display = bbox_display.height
+        
+        # Convert display coordinates to data coordinates
+        # Get transformation from display to data coordinates
+        inv_transform = temp_ax.transData.inverted()
+        
+        # Convert corners of bounding box to data coordinates
+        # Bounding box is in display coordinates (pixels), need to transform
+        # Get the text position in display coords and calculate offset
+        text_pos_display = temp_ax.transData.transform((0, 0))
+        bbox_left = text_pos_display[0] - text_width_display / 2
+        bbox_right = text_pos_display[0] + text_width_display / 2
+        bbox_bottom = text_pos_display[1] - text_height_display / 2
+        bbox_top = text_pos_display[1] + text_height_display / 2
+        
+        # Convert to data coordinates
+        left_data, _ = inv_transform.transform((bbox_left, text_pos_display[1]))
+        right_data, _ = inv_transform.transform((bbox_right, text_pos_display[1]))
+        _, bottom_data = inv_transform.transform((text_pos_display[0], bbox_bottom))
+        _, top_data = inv_transform.transform((text_pos_display[0], bbox_top))
+        
+        text_width_data = abs(right_data - left_data)
+        text_height_data = abs(top_data - bottom_data)
+        
+        # Clean up temporary figure
+        plt.close(temp_fig)
+        
+        # Calculate node size: text dimension + padding
+        # Use the larger dimension (width or height) to ensure text fits
+        text_dimension = max(text_width_data, text_height_data)
+        padding_factor = 1.5  # 50% padding around text (25% on each side)
+        required_node_size_data = text_dimension * padding_factor
+        
+        # Tigramite's node_size parameter is used as standard_size in data coordinates
+        # NetworkX circular layout uses coordinates in [-1, 1] range
+        # Node size of 0.3 means 30% of that range, which is reasonable
+        # We need to ensure our calculated size is appropriate for this coordinate system
+        
+        # Set reasonable bounds for node size in data coordinates
+        min_node_size = 0.2   # Minimum node size (20% of coordinate range)
+        max_node_size = 0.8   # Maximum node size (80% of coordinate range)
+        
+        # Scale the required size, but ensure it's within bounds
+        node_size = max(min_node_size, min(max_node_size, required_node_size_data))
+        
+        # If the calculated size exceeds maximum, reduce font size and recalculate
+        max_iterations = 3
+        iteration = 0
+        while node_size > max_node_size and iteration < max_iterations and node_label_size > 6:
+            iteration += 1
+            # Reduce font size
+            node_label_size = max(6, node_label_size - 1)
+            
+            # Re-measure with smaller font
+            temp_fig2, temp_ax2 = plt.subplots(figsize=(10, 10))
+            temp_ax2.set_xlim(-1.2, 1.2)
+            temp_ax2.set_ylim(-1.2, 1.2)
+            temp_ax2.set_aspect('equal')
+            text_obj2 = temp_ax2.text(0, 0, longest_label, fontsize=node_label_size,
+                                      horizontalalignment='center', verticalalignment='center',
+                                      family='sans-serif')
+            temp_fig2.canvas.draw()
+            renderer2 = temp_fig2.canvas.get_renderer()
+            bbox_display2 = text_obj2.get_window_extent(renderer2)
+            text_width_display2 = bbox_display2.width
+            text_height_display2 = bbox_display2.height
+            text_pos_display2 = temp_ax2.transData.transform((0, 0))
+            inv_transform2 = temp_ax2.transData.inverted()
+            bbox_left2 = text_pos_display2[0] - text_width_display2 / 2
+            bbox_right2 = text_pos_display2[0] + text_width_display2 / 2
+            bbox_bottom2 = text_pos_display2[1] - text_height_display2 / 2
+            bbox_top2 = text_pos_display2[1] + text_height_display2 / 2
+            left_data2, _ = inv_transform2.transform((bbox_left2, text_pos_display2[1]))
+            right_data2, _ = inv_transform2.transform((bbox_right2, text_pos_display2[1]))
+            _, bottom_data2 = inv_transform2.transform((text_pos_display2[0], bbox_bottom2))
+            _, top_data2 = inv_transform2.transform((text_pos_display2[0], bbox_top2))
+            text_width_data2 = abs(right_data2 - left_data2)
+            text_height_data2 = abs(top_data2 - bottom_data2)
+            text_dimension2 = max(text_width_data2, text_height_data2)
+            required_node_size_data2 = text_dimension2 * padding_factor
+            node_size = max(min_node_size, min(max_node_size, required_node_size_data2))
+            plt.close(temp_fig2)
+    else:
+        node_size = 0.3
+        node_label_size = 10
+    
     # Plot using tigramite
     # Pass val_matrix so tigramite can compute lag labels properly
     tp.plot_graph(
         graph=tigramite_graph,
         val_matrix=val_matrix,
-        var_names=var_names,
+        var_names=display_names,
         arrow_linewidth=arrow_linewidth,
         figsize=figsize,
         save_name=save_name,
         show_colorbar=show_colorbar,
+        node_size=node_size,
+        node_label_size=node_label_size,
     )
     
     if save_name is None:

@@ -8,6 +8,7 @@ and lag labels.
 
 import numpy as np
 import os
+import re
 from datetime import datetime
 from typing import List, Optional, Tuple
 
@@ -38,6 +39,39 @@ REVERSE_PATTERN = {
     '<-o': 'o->',
     'o-o': 'o-o',
 }
+
+
+def split_camelcase(name: str) -> str:
+    """
+    Split camelCase variable names into separate words.
+    
+    Examples:
+        "ExchangeRate" -> "Exchange\nRate"
+        "MonetaryShock" -> "Monetary\nShock"
+        "PolicyRate" -> "Policy\nRate"
+        "Output_IP_logdiff" -> "Output_IP_logdiff" (no change, has underscores)
+        "NX GDP RATIO PCT" -> "NX GDP RATIO PCT" (no change, already has spaces)
+    
+    Args:
+        name: Variable name to process
+    
+    Returns:
+        Name with camelCase words split by newlines
+    """
+    # If name already has spaces or underscores, don't process
+    if ' ' in name or '_' in name:
+        return name
+    
+    # Split on capital letters that follow lowercase letters (camelCase detection)
+    # Pattern: lowercase letter followed by uppercase letter
+    # Insert space before the uppercase letter
+    split_name = re.sub(r'([a-z])([A-Z])', r'\1 \2', name)
+    
+    # If we found a split (name changed), replace space with newline
+    if split_name != name:
+        return split_name.replace(' ', '\n')
+    
+    return name
 
 
 def get_max_lag_from_graph(graph: StandardGraph) -> int:
@@ -179,11 +213,15 @@ def plot_graph_tigramite(
     else:
         display_names = var_names
     
+    # Process variable names: split camelCase into multiple lines
+    display_names = [split_camelcase(name) for name in display_names]
+    
     # Calculate adaptive node size and label size based on text width (Option B)
     if display_names:
-        # First, determine appropriate font size based on label length
-        max_label_length = max(len(name) for name in display_names)
-        longest_label = max(display_names, key=len)
+        # Find longest label (by character count, not display lines)
+        # For multi-line labels, we need to measure the actual rendered size
+        longest_label = max(display_names, key=lambda x: len(x.replace('\n', '')))
+        max_label_length = len(longest_label.replace('\n', ''))
         
         # Scale label size inversely with label length to fit better
         # Longer labels get smaller font size
@@ -245,8 +283,9 @@ def plot_graph_tigramite(
         
         # Calculate node size: text dimension + padding
         # Use the larger dimension (width or height) to ensure text fits
+        # For multi-line text (with '\n'), height will typically be larger
         text_dimension = max(text_width_data, text_height_data)
-        padding_factor = 1.5  # 50% padding around text (25% on each side)
+        padding_factor = 2.5 # 50% padding around text (25% on each side)
         required_node_size_data = text_dimension * padding_factor
         
         # Tigramite's node_size parameter is used as standard_size in data coordinates

@@ -1,9 +1,0 @@
-Graph Nodes:
-MortgageRates;CreditSupply;HousePrices;Consumption;Output
-
-Graph Edges:
-1. MortgageRates --> HousePrices
-2. CreditSupply --> HousePrices
-3. HousePrices --> Consumption
-4. Consumption --> Output
-

@@ -448,7 +448,7 @@ Plotting:
             data_filtered, data_vars,
             alpha_grid=alpha_grid,
             p_grid=lag_grid,
-            max_cond_grid=[None],
+            max_cond_grid=[None], # can adjust max conditioning set size here
             verbose=not args.quiet
         )
         

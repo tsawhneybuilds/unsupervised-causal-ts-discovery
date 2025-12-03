@@ -94,25 +94,30 @@ def parse_tetrad_edge(edge_str: str) -> Optional[Edge]:
         "X1 --- X2" -> Edge("X1", "X2", "undirected")
         "X1 o-> X2" -> Edge("X1", "X2", "pag_circle_arrow")
         "X1 o-o X2" -> Edge("X1", "X2", "pag_circle_circle")
+        "X1 --> NX GDP RATIO PCT" -> Edge("X1", "NX GDP RATIO PCT", "directed")
     """
     # Remove leading number and period if present (e.g., "1. X1 --> X2")
     edge_str = re.sub(r'^\d+\.\s*', '', edge_str.strip())
     
-    # Pattern to match edges
+    # Pattern to match edges - updated to handle variable names with spaces
+    # Use (.+?) to match any characters (including spaces) up to the arrow pattern
     patterns = [
-        (r'^(\S+)\s+-->\s+(\S+)$', "directed", False),      # X1 --> X2
-        (r'^(\S+)\s+<--\s+(\S+)$', "directed", True),       # X1 <-- X2 (reverse)
-        (r'^(\S+)\s+<->\s+(\S+)$', "bidirected", False),    # X1 <-> X2
-        (r'^(\S+)\s+---\s+(\S+)$', "undirected", False),    # X1 --- X2
-        (r'^(\S+)\s+o->\s+(\S+)$', "pag_circle_arrow", False),  # X1 o-> X2
-        (r'^(\S+)\s+<-o\s+(\S+)$', "pag_circle_arrow", True),   # X1 <-o X2 (reverse)
-        (r'^(\S+)\s+o-o\s+(\S+)$', "pag_circle_circle", False), # X1 o-o X2
+        (r'^(.+?)\s+-->\s+(.+)$', "directed", False),      # X1 --> X2 (handles spaces)
+        (r'^(.+?)\s+<--\s+(.+)$', "directed", True),       # X1 <-- X2 (reverse, handles spaces)
+        (r'^(.+?)\s+<->\s+(.+)$', "bidirected", False),    # X1 <-> X2 (handles spaces)
+        (r'^(.+?)\s+---\s+(.+)$', "undirected", False),    # X1 --- X2 (handles spaces)
+        (r'^(.+?)\s+o->\s+(.+)$', "pag_circle_arrow", False),  # X1 o-> X2 (handles spaces)
+        (r'^(.+?)\s+<-o\s+(.+)$', "pag_circle_arrow", True),   # X1 <-o X2 (reverse, handles spaces)
+        (r'^(.+?)\s+o-o\s+(.+)$', "pag_circle_circle", False), # X1 o-o X2 (handles spaces)
     ]
     
     for pattern, edge_type, reverse in patterns:
         match = re.match(pattern, edge_str)
         if match:
             src, tgt = match.groups()
+            # Strip whitespace from matched groups
+            src = src.strip()
+            tgt = tgt.strip()
             if reverse:
                 src, tgt = tgt, src
             return Edge(src, tgt, edge_type)

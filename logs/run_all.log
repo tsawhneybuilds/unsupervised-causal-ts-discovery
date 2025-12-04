@@ -1,0 +1,40 @@
+Using dataset monetary_shock: Monetary Policy Transmission DAG - uses exact column names
+Data loaded from data/monetaryshock_latest_final.csv: 312 rows, 11 variables
+
+Variable map for monetary_shock:
+--------------------------------------------------
+Graph Name                Data Column              
+--------------------------------------------------
+MonetaryShock             MonetaryShock_RR         
+PolicyRate                FEDFUNDS                 
+InflationExpectations     infl_exp                 
+CreditConditions          nfci_creditconditions    
+AssetPrices               assetprice_sp500_logdiff 
+ExchangeRate              RNUSBIS_logdiff          
+Investment                Investment_logdiff       
+Consumption               Consumption_real_logdiff 
+Output                    Output_IP_logdiff        
+NetExports                NX GDP RATIO PCT         
+Inflation                 inflation_pce_yoy        
+--------------------------------------------------
+Applying variable map to reference graph...
+
+Selecting alpha and max-lag via SVAR-FCI BIC search...
+Search: alpha=0.010, p=1, max_cond=inf
+  BIC: 888.3376 (df=206.0)
+Search: alpha=0.050, p=1, max_cond=inf
+  BIC: 705.9503 (df=199.0)
+Search: alpha=0.010, p=2, max_cond=inf
+  BIC: 230.2550 (df=483.0)
+Search: alpha=0.050, p=2, max_cond=inf
+  BIC: -53.9880 (df=475.0)
+Best Model: alpha=0.050, p=2, max_cond=None, BIC=-53.9880
+Selected alpha=0.05, max_lag=2, BIC=-53.9880
+
+Using alpha=0.05, max_lag=2
+
+Running SVAR-FCI(α=0.05, p=2) ...
+  ERROR in 863.95s | checkpoint: results/monetary_longrun/checkpoints/SVAR-FCI_0.05_p_2_.json
+  Updated summary -> results/monetary_longrun/comparison_results.csv
+
+Running SVAR-GFCI(α=0.05, p=2) ...

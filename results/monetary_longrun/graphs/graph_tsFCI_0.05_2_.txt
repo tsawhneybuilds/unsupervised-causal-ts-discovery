@@ -1,0 +1,41 @@
+Graph Nodes:
+MonetaryShock_RR;FEDFUNDS;Output_IP_logdiff;assetprice_sp500_logdiff;RNUSBIS_logdiff;Investment_logdiff;NX GDP RATIO PCT;infl_exp;nfci_creditconditions;inflation_pce_yoy;Consumption_real_logdiff
+
+Graph Edges:
+1. MonetaryShock_RR <-> Output_IP_logdiff
+2. MonetaryShock_RR o-> FEDFUNDS
+3. MonetaryShock_RR o-> RNUSBIS_logdiff
+4. FEDFUNDS <-> Output_IP_logdiff
+5. FEDFUNDS <-> assetprice_sp500_logdiff
+6. FEDFUNDS <-> RNUSBIS_logdiff
+7. FEDFUNDS <-> Investment_logdiff
+8. FEDFUNDS <-> infl_exp
+9. FEDFUNDS <-> nfci_creditconditions
+10. FEDFUNDS <-> inflation_pce_yoy
+11. FEDFUNDS <-> Consumption_real_logdiff
+12. Output_IP_logdiff <-> Investment_logdiff
+13. Output_IP_logdiff <-> infl_exp
+14. Output_IP_logdiff <-> nfci_creditconditions
+15. Output_IP_logdiff <-> inflation_pce_yoy
+16. Output_IP_logdiff <-> Consumption_real_logdiff
+17. assetprice_sp500_logdiff <-> nfci_creditconditions
+18. assetprice_sp500_logdiff <-> inflation_pce_yoy
+19. assetprice_sp500_logdiff <-> Consumption_real_logdiff
+20. assetprice_sp500_logdiff o-> MonetaryShock_RR
+21. RNUSBIS_logdiff <-> infl_exp
+22. RNUSBIS_logdiff <-> nfci_creditconditions
+23. RNUSBIS_logdiff o-> Consumption_real_logdiff
+24. Investment_logdiff <-> infl_exp
+25. Investment_logdiff <-> nfci_creditconditions
+26. Investment_logdiff <-> inflation_pce_yoy
+27. Investment_logdiff <-> Consumption_real_logdiff
+28. Investment_logdiff --> assetprice_sp500_logdiff
+29. NX GDP RATIO PCT o-> MonetaryShock_RR
+30. NX GDP RATIO PCT o-> assetprice_sp500_logdiff
+31. NX GDP RATIO PCT o-> RNUSBIS_logdiff
+32. infl_exp <-> nfci_creditconditions
+33. infl_exp <-> inflation_pce_yoy
+34. infl_exp <-> Consumption_real_logdiff
+35. nfci_creditconditions <-> inflation_pce_yoy
+36. nfci_creditconditions <-> Consumption_real_logdiff
+37. inflation_pce_yoy <-> Consumption_real_logdiff

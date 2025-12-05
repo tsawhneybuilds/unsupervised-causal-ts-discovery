@@ -20,7 +20,7 @@ from typing import List, Optional, Tuple, Set
 # Import from svar_fci (reuse existing components)
 from svar_fci.graph import DynamicPAG, NULL, CIRCLE, ARROW, TAIL
 from svar_fci.independence import fisher_z_test
-from svar_fci.orientation import pds_s, apply_rules
+from svar_fci.orientation import pds_s, pds_t, apply_rules
 
 # Import SVAR-GFCI specific components
 from .graph import DynamicCPDAG
@@ -310,10 +310,10 @@ class SVAR_GFCI:
                     if not G.is_adjacent(i, j):
                         continue
                     
-                    # Candidate conditioning sets from pds_s
-                    P1 = pds_s(G, i, j)
-                    P2 = pds_s(G, j, i)
-                    P_union = list(P1.union(P2))
+                    # Candidate conditioning sets from pdss (unrestricted) and pds_s (time-restricted)
+                    Pd = pds_t(G, i, j).union(pds_t(G, j, i))
+                    Pt = pds_s(G, i, j).union(pds_s(G, j, i))
+                    P_union = list(Pd.union(Pt))
                     
                     if len(P_union) < n:
                         continue
@@ -459,4 +459,3 @@ class SVAR_GFCI:
     def get_ges_graph(self) -> Optional[DynamicCPDAG]:
         """Return the SVAR-GES output, or None if fit() hasn't been called."""
         return self.G_
-

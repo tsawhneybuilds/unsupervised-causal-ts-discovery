@@ -556,6 +556,16 @@ def plot_graph_custom_layout(
             else:
                 filtered_lags = lags_as_ints
             
+            # Remove duplicates while preserving order (in case there are any)
+            # Convert to list of unique values while preserving order
+            seen = set()
+            unique_lags = []
+            for lag in filtered_lags:
+                if lag not in seen:
+                    seen.add(lag)
+                    unique_lags.append(lag)
+            filtered_lags = unique_lags
+            
             # Only use filtered_lags if it has values after filtering
             if not filtered_lags or len(filtered_lags) == 0:
                 filtered_lags = None
@@ -584,29 +594,28 @@ def plot_graph_custom_layout(
             )
             ax.add_patch(arrow)
             
-            # Calculate label position from actual arrow path
+            # Calculate label position using tigramite's method:
+            # Get the actual rendered path using to_polygons, then find midpoint
             try:
-                path = arrow.get_path()
-                vertices = path.vertices
-                if len(vertices) > 2:
-                    total_len = 0
-                    seg_lengths = []
-                    for i in range(len(vertices) - 1):
-                        dx = vertices[i+1][0] - vertices[i][0]
-                        dy = vertices[i+1][1] - vertices[i][1]
-                        seg_len = math.sqrt(dx*dx + dy*dy)
-                        seg_lengths.append(seg_len)
-                        total_len += seg_len
-                    target = total_len * 0.5
-                    cum = 0
-                    for i, seg_len in enumerate(seg_lengths):
-                        if cum + seg_len >= target:
-                            t_loc = (target - cum) / seg_len if seg_len > 0 else 0
-                            label_x = vertices[i][0] + t_loc * (vertices[i+1][0] - vertices[i][0])
-                            label_y = vertices[i][1] + t_loc * (vertices[i+1][1] - vertices[i][1])
-                            break
-                        cum += seg_len
+                # Get the path as polygons (this gives the actual rendered curve)
+                path_polygons = arrow.get_path().to_polygons(transform=None)
+                if path_polygons and len(path_polygons) > 0:
+                    verts = path_polygons[0]  # Get first polygon
+                    if len(verts) > 2:
+                        # Find midpoint by index (tigramite uses int(len(vertices)/2))
+                        mid_idx = int(len(verts) / 2)
+                        label_x = verts[mid_idx][0]
+                        label_y = verts[mid_idx][1]
+                    else:
+                        # Fallback to geometric midpoint
+                        label_x = (start_x + end_x) / 2
+                        label_y = (start_y + end_y) / 2
+                else:
+                    # Fallback to geometric midpoint
+                    label_x = (start_x + end_x) / 2
+                    label_y = (start_y + end_y) / 2
             except Exception:
+                # Use geometric midpoint if path extraction fails
                 label_x = (start_x + end_x) / 2
                 label_y = (start_y + end_y) / 2
             
@@ -641,28 +650,21 @@ def plot_graph_custom_layout(
             )
             ax.add_patch(arrow1)
             
-            # Calculate label position from actual arrow path
+            # Calculate label position using tigramite's method
             try:
-                path = arrow1.get_path()
-                vertices = path.vertices
-                if len(vertices) > 2:
-                    total_len = 0
-                    seg_lengths = []
-                    for i in range(len(vertices) - 1):
-                        dx = vertices[i+1][0] - vertices[i][0]
-                        dy = vertices[i+1][1] - vertices[i][1]
-                        seg_len = math.sqrt(dx*dx + dy*dy)
-                        seg_lengths.append(seg_len)
-                        total_len += seg_len
-                    target = total_len * 0.5
-                    cum = 0
-                    for i, seg_len in enumerate(seg_lengths):
-                        if cum + seg_len >= target:
-                            t_loc = (target - cum) / seg_len if seg_len > 0 else 0
-                            label_x = vertices[i][0] + t_loc * (vertices[i+1][0] - vertices[i][0])
-                            label_y = vertices[i][1] + t_loc * (vertices[i+1][1] - vertices[i][1])
-                            break
-                        cum += seg_len
+                path_polygons = arrow1.get_path().to_polygons(transform=None)
+                if path_polygons and len(path_polygons) > 0:
+                    verts = path_polygons[0]
+                    if len(verts) > 2:
+                        mid_idx = int(len(verts) / 2)
+                        label_x = verts[mid_idx][0]
+                        label_y = verts[mid_idx][1]
+                    else:
+                        label_x = (start_x + end_x) / 2
+                        label_y = (start_y + end_y) / 2
+                else:
+                    label_x = (start_x + end_x) / 2
+                    label_y = (start_y + end_y) / 2
             except Exception:
                 label_x = (start_x + end_x) / 2
                 label_y = (start_y + end_y) / 2
@@ -705,28 +707,21 @@ def plot_graph_custom_layout(
                                   zorder=5)  # Higher zorder to be on top
             ax.add_patch(circle_marker)
             
-            # Calculate label position from actual arrow path
+            # Calculate label position using tigramite's method
             try:
-                path = arrow.get_path()
-                vertices = path.vertices
-                if len(vertices) > 2:
-                    total_len = 0
-                    seg_lengths = []
-                    for i in range(len(vertices) - 1):
-                        dx = vertices[i+1][0] - vertices[i][0]
-                        dy = vertices[i+1][1] - vertices[i][1]
-                        seg_len = math.sqrt(dx*dx + dy*dy)
-                        seg_lengths.append(seg_len)
-                        total_len += seg_len
-                    target = total_len * 0.5
-                    cum = 0
-                    for i, seg_len in enumerate(seg_lengths):
-                        if cum + seg_len >= target:
-                            t_loc = (target - cum) / seg_len if seg_len > 0 else 0
-                            label_x = vertices[i][0] + t_loc * (vertices[i+1][0] - vertices[i][0])
-                            label_y = vertices[i][1] + t_loc * (vertices[i+1][1] - vertices[i][1])
-                            break
-                        cum += seg_len
+                path_polygons = arrow.get_path().to_polygons(transform=None)
+                if path_polygons and len(path_polygons) > 0:
+                    verts = path_polygons[0]
+                    if len(verts) > 2:
+                        mid_idx = int(len(verts) / 2)
+                        label_x = verts[mid_idx][0]
+                        label_y = verts[mid_idx][1]
+                    else:
+                        label_x = (start_x + end_x) / 2
+                        label_y = (start_y + end_y) / 2
+                else:
+                    label_x = (start_x + end_x) / 2
+                    label_y = (start_y + end_y) / 2
             except Exception:
                 label_x = (start_x + end_x) / 2
                 label_y = (start_y + end_y) / 2
@@ -768,30 +763,24 @@ def plot_graph_custom_layout(
                                       zorder=5)  # Higher zorder to be on top
                 ax.add_patch(circle_marker)
             
-            # Calculate label position from actual arrow path
+            # Calculate label position using tigramite's method
             try:
-                path = arrow.get_path()
-                vertices = path.vertices
-                if len(vertices) > 2:
-                    total_len = 0
-                    seg_lengths = []
-                    for i in range(len(vertices) - 1):
-                        dx = vertices[i+1][0] - vertices[i][0]
-                        dy = vertices[i+1][1] - vertices[i][1]
-                        seg_len = math.sqrt(dx*dx + dy*dy)
-                        seg_lengths.append(seg_len)
-                        total_len += seg_len
-                    target = total_len * 0.5
-                    cum = 0
-                    for i, seg_len in enumerate(seg_lengths):
-                        if cum + seg_len >= target:
-                            t_loc = (target - cum) / seg_len if seg_len > 0 else 0
-                            label_x = vertices[i][0] + t_loc * (vertices[i+1][0] - vertices[i][0])
-                            label_y = vertices[i][1] + t_loc * (vertices[i+1][1] - vertices[i][1])
-                            break
-                        cum += seg_len
+                path_polygons = arrow.get_path().to_polygons(transform=None)
+                if path_polygons and len(path_polygons) > 0:
+                    verts = path_polygons[0]
+                    if len(verts) > 2:
+                        mid_idx = int(len(verts) / 2)
+                        label_x = verts[mid_idx][0]
+                        label_y = verts[mid_idx][1]
+                    else:
+                        label_x = (start_x + end_x) / 2
+                        label_y = (start_y + end_y) / 2
+                else:
+                    label_x = (start_x + end_x) / 2
+                    label_y = (start_y + end_y) / 2
             except Exception:
-                pass
+                label_x = (start_x + end_x) / 2
+                label_y = (start_y + end_y) / 2
             
             # Add lag labels if available
             if filtered_lags and len(filtered_lags) > 0:
@@ -822,29 +811,28 @@ def plot_graph_custom_layout(
             )
             ax.add_patch(arrow)
             
-            # Calculate label position from actual arrow path
+            # Calculate label position using tigramite's method:
+            # Get the actual rendered path using to_polygons, then find midpoint
             try:
-                path = arrow.get_path()
-                vertices = path.vertices
-                if len(vertices) > 2:
-                    total_len = 0
-                    seg_lengths = []
-                    for i in range(len(vertices) - 1):
-                        dx = vertices[i+1][0] - vertices[i][0]
-                        dy = vertices[i+1][1] - vertices[i][1]
-                        seg_len = math.sqrt(dx*dx + dy*dy)
-                        seg_lengths.append(seg_len)
-                        total_len += seg_len
-                    target = total_len * 0.5
-                    cum = 0
-                    for i, seg_len in enumerate(seg_lengths):
-                        if cum + seg_len >= target:
-                            t_loc = (target - cum) / seg_len if seg_len > 0 else 0
-                            label_x = vertices[i][0] + t_loc * (vertices[i+1][0] - vertices[i][0])
-                            label_y = vertices[i][1] + t_loc * (vertices[i+1][1] - vertices[i][1])
-                            break
-                        cum += seg_len
+                # Get the path as polygons (this gives the actual rendered curve)
+                path_polygons = arrow.get_path().to_polygons(transform=None)
+                if path_polygons and len(path_polygons) > 0:
+                    verts = path_polygons[0]  # Get first polygon
+                    if len(verts) > 2:
+                        # Find midpoint by index (tigramite uses int(len(vertices)/2))
+                        mid_idx = int(len(verts) / 2)
+                        label_x = verts[mid_idx][0]
+                        label_y = verts[mid_idx][1]
+                    else:
+                        # Fallback to geometric midpoint
+                        label_x = (start_x + end_x) / 2
+                        label_y = (start_y + end_y) / 2
+                else:
+                    # Fallback to geometric midpoint
+                    label_x = (start_x + end_x) / 2
+                    label_y = (start_y + end_y) / 2
             except Exception:
+                # Use geometric midpoint if path extraction fails
                 label_x = (start_x + end_x) / 2
                 label_y = (start_y + end_y) / 2
             

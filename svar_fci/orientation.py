@@ -8,15 +8,11 @@ from .graph import DynamicPAG, NULL, CIRCLE, ARROW, TAIL
 # --------------------------------------------------------------------
 
 
-def pds_s(graph: DynamicPAG, i: int, j: int) -> Set[int]:
+def _pds_core(graph: DynamicPAG, i: int, j: int) -> Set[int]:
     """
-    Time-restricted possible-d-sep set pds_s(X_i, X_j, P).
-    Paths must respect the collider/triangle condition and lag <= maxlag.
+    Core possible-d-sep search used by both time-restricted and unrestricted
+    variants. Implements the collider/triangle constraint along a path.
     """
-    info_i = graph.decode_node(i)
-    info_j = graph.decode_node(j)
-    maxlag = max(info_i.lag, info_j.lag)
-
     result = set()
     queue = deque([[i]])
     visited_paths = set()
@@ -42,14 +38,32 @@ def pds_s(graph: DynamicPAG, i: int, j: int) -> Set[int]:
             visited_paths.add(key)
             if not path_ok(new_path):
                 continue
-            info_nb = graph.decode_node(nb)
-            if info_nb.lag <= maxlag:
-                result.add(nb)
+            result.add(nb)
             queue.append(new_path)
 
     result.discard(i)
     result.discard(j)
     return result
+
+
+def pds_s(graph: DynamicPAG, i: int, j: int) -> Set[int]:
+    """
+    Time-restricted possible-d-sep set pds_s(X_i, X_j, P).
+    Paths must respect the collider/triangle condition and lag <= maxlag.
+    """
+    info_i = graph.decode_node(i)
+    info_j = graph.decode_node(j)
+    maxlag = max(info_i.lag, info_j.lag)
+
+    raw = _pds_core(graph, i, j)
+    return {nb for nb in raw if graph.decode_node(nb).lag <= maxlag}
+
+
+def pds_t(graph: DynamicPAG, i: int, j: int) -> Set[int]:
+    """
+    Unrestricted possible-d-sep set (pdss in the pseudocode) without lag filter.
+    """
+    return _pds_core(graph, i, j)
 
 
 # --------------------------------------------------------------------

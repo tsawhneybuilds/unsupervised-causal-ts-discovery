@@ -48,11 +48,11 @@ from run_comparison import DATASETS, get_dataset_config  # noqa: E402
 
 def _classify_pair(name_a: str, name_b: str, info: dict) -> Edge:
     """
-    Apply the requested summary-edge rules and attach a single lag entry
-    that encodes how many distinct lags the pair appeared at (if available).
+    Apply the requested summary-edge rules and attach all lag values
+    where the pair appeared (if available).
     """
-    lag_count = len(info["lags"])
-    lags = [lag_count] if lag_count > 0 else None
+    # Preserve all actual lag values, not just the count
+    lags = sorted(list(info["lags"])) if info["lags"] and len(info["lags"]) > 0 else None
 
     arrow_a = info["arrow_a"]
     arrow_b = info["arrow_b"]

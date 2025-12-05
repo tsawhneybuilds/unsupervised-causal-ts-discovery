@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple
 
 from .graph import DynamicPAG, NULL, CIRCLE, ARROW, TAIL
 from .independence import fisher_z_test
-from .orientation import pds_s, apply_rules
+from .orientation import pds_s, pds_t, apply_rules
 from .scoring import icf_bic_score
 
 class SVAR_FCI:
@@ -138,15 +138,15 @@ class SVAR_FCI:
                 break
             changed = False
             if self.verbose:
-                print(f"  pds_s, conditioning size n={n}")
+                print(f"  pds, conditioning size n={n}")
             for i in range(p):
                 for j in range(i + 1, p):
                     if not G.is_adjacent(i, j):
                         continue
-                    # candidate conditioning sets from pds_s
-                    P1 = pds_s(G, i, j)
-                    P2 = pds_s(G, j, i)
-                    P_union = list(P1.union(P2))
+                    # candidate conditioning sets from pdss (unrestricted) and pds_s (time-restricted)
+                    Pd = pds_t(G, i, j).union(pds_t(G, j, i))
+                    Pt = pds_s(G, i, j).union(pds_s(G, j, i))
+                    P_union = list(Pd.union(Pt))
                     if len(P_union) < n:
                         continue
                     found_sep = False

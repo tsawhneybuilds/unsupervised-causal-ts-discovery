@@ -1,0 +1,19 @@
+{
+  "algorithm_name": "tsFCI(\u03b1=0.05, \u03c4=2)",
+  "safe_name": "tsFCI_0.05_2_",
+  "elapsed_time": 1.1135120391845703,
+  "metrics": {
+    "adj_precision": 0.29411764705882354,
+    "adj_recall": 0.7142857142857143,
+    "f1_adj": 0.4166666666666667,
+    "arrow_precision": 0.17857142857142858,
+    "arrow_recall": 0.625,
+    "f1_arrow": 0.2777777777777778,
+    "shd": -99.0
+  },
+  "error": null,
+  "graph_path": "results/A1C/graphs/graph_tsFCI_0.05_2_.txt",
+  "graph_json_path": "results/A1C/graphs/graph_tsFCI_0.05_2_.json",
+  "edges": 17,
+  "created_at": "2025-12-04T17:32:34.691291Z"
+}

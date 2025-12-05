@@ -144,6 +144,18 @@ DATASETS = {
         'description': 'Housing Wealth Transmission - uses friendly names with mapping'
     },
     
+    # === Synthetic Datasets ===
+    'a1c': {
+        'data': 'data/A1C.csv',
+        'reference': 'data/a1c_graph.txt',
+        'description': 'A1C synthetic dataset with 8 variables (X1-X8)'
+    },
+    'b1c': {
+        'data': 'data/B1C.csv',
+        'reference': 'data/b1c_graph.txt',
+        'description': 'B1C synthetic dataset with 8 variables (X1-X8)'
+    },
+    
     # Add more datasets here as needed:
     # 'my_dataset': {
     #     'data': 'data/my_data.csv',

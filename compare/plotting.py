@@ -10,6 +10,7 @@ import numpy as np
 import os
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 # Add tigramite to path
@@ -359,6 +360,529 @@ def plot_graph_tigramite(
         plt.show()
     else:
         plt.close()
+
+
+def plot_graph_custom_layout(
+    graph: StandardGraph,
+    var_names: Optional[List[str]] = None,
+    save_name: Optional[str] = None,
+    max_lag: Optional[int] = None,
+    arrow_linewidth: float = 4.0,
+    figsize: tuple = (14, 10),
+    var_name_map: Optional[dict] = None,
+    node_positions: Optional[dict] = None,
+) -> None:
+    """
+    Plot a StandardGraph with a fixed node layout and curved arrows that go around circles.
+    
+    This function creates a custom layout matching the reference graph structure:
+    - Nodes are positioned in a fixed grid layout
+    - Arrows curve around node circles to keep both clearly visible
+    - Supports all edge types (directed, bidirected, PAG edges)
+    
+    Args:
+        graph: StandardGraph to visualize
+        var_names: Variable names for labels (uses graph.nodes if None)
+        save_name: Path to save the figure (if None, displays interactively)
+        max_lag: Maximum lag for time series graphs (for lag labels)
+        arrow_linewidth: Width of arrow lines
+        figsize: Figure size tuple (width, height)
+        var_name_map: Optional dict mapping current variable names to display names
+        node_positions: Optional dict mapping node names to (x, y) positions.
+                       If None, uses default layout for monetary_shock dataset.
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+    from matplotlib.patches import FancyArrowPatch, Circle, FancyBboxPatch
+    import math
+    
+    # Use graph nodes as var_names if not provided
+    if var_names is None:
+        var_names = graph.nodes
+    
+    # Apply variable name mapping if provided
+    if var_name_map:
+        display_names_map = {name: var_name_map.get(name, name) for name in var_names}
+    else:
+        display_names_map = {name: name for name in var_names}
+    
+    # Default node positions for monetary_shock dataset (matching reference graph layout)
+    # Layout based on image: top row, second row, third row, bottom
+    default_positions = {
+        # Top row
+        'MonetaryShock': (0, 3),
+        'InflationExpectations': (3, 3),
+        # Second row
+        'PolicyRate': (0, 2),
+        'CreditConditions': (1, 2),
+        'AssetPrices': (2, 2),
+        'ExchangeRate': (3, 2),
+        # Third row
+        'Consumption': (1, 1),
+        'Investment': (2, 1),
+        'NetExports': (3, 1),
+        # Bottom
+        'Output': (1, 0),
+        'Inflation': (2, 0),
+    }
+    
+    # Also map common data column names to display names for position lookup
+    data_to_display = {
+        'MonetaryShock_RR': 'MonetaryShock',
+        'FEDFUNDS': 'PolicyRate',
+        'infl_exp': 'InflationExpectations',
+        'nfci_creditconditions': 'CreditConditions',
+        'assetprice_sp500_logdiff': 'AssetPrices',
+        'RNUSBIS_logdiff': 'ExchangeRate',
+        'Consumption_real_logdiff': 'Consumption',
+        'Investment_logdiff': 'Investment',
+        'NX GDP RATIO PCT': 'NetExports',
+        'Output_IP_logdiff': 'Output',
+        'inflation_pce_yoy': 'Inflation',
+    }
+    
+    # Build node positions: map each graph node to a position
+    if node_positions is None:
+        node_positions = {}
+        for node in var_names:
+            display_name = display_names_map.get(node, node)
+            # Try display name first, then data column name
+            if display_name in default_positions:
+                node_positions[node] = default_positions[display_name]
+            elif node in data_to_display:
+                mapped = data_to_display[node]
+                if mapped in default_positions:
+                    node_positions[node] = default_positions[mapped]
+            # If still not found, use a default grid position
+            if node not in node_positions:
+                idx = var_names.index(node)
+                node_positions[node] = (idx % 4, 3 - (idx // 4))
+    else:
+        # Use provided positions, but ensure all nodes have positions
+        for node in var_names:
+            if node not in node_positions:
+                idx = var_names.index(node)
+                node_positions[node] = (idx % 4, 3 - (idx // 4))
+    
+    # Create figure
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.set_aspect('equal')
+    ax.axis('off')
+    
+    # Node properties - make them bigger and more prominent
+    node_radius = 0.25
+    node_color = '#E8F4F8'  # Light blue
+    node_edge_color = '#1A1A1A'  # Very dark, almost black
+    node_edge_width = 4
+    
+    # Draw nodes as circles
+    node_circles = {}
+    for node in var_names:
+        x, y = node_positions[node]
+        circle = Circle((x, y), node_radius, 
+                        facecolor=node_color, 
+                        edgecolor=node_edge_color,
+                        linewidth=node_edge_width,
+                        zorder=10)
+        ax.add_patch(circle)
+        node_circles[node] = circle
+        
+        # Add text label
+        display_name = split_camelcase(display_names_map.get(node, node))
+        ax.text(x, y, display_name, 
+               ha='center', va='center',
+               fontsize=11, weight='bold',
+               color='#1A1A1A',
+               zorder=11)
+    
+    # Draw edges with arrows that connect at circle edges
+    for edge in graph.edges:
+        if edge.src not in node_positions or edge.tgt not in node_positions:
+            continue
+        
+        src_pos = node_positions[edge.src]
+        tgt_pos = node_positions[edge.tgt]
+        
+        # Calculate direction vector
+        dx = tgt_pos[0] - src_pos[0]
+        dy = tgt_pos[1] - src_pos[1]
+        dist = math.sqrt(dx*dx + dy*dy)
+        
+        if dist < 0.01:  # Skip self-loops for now
+            continue
+        
+        # Normalize direction vector
+        dx_norm = dx / dist
+        dy_norm = dy / dist
+        
+        # Calculate exact edge points where arrows should start/end (on circle boundaries)
+        # This ensures arrows align with circle edges and don't get covered
+        start_x = src_pos[0] + dx_norm * node_radius
+        start_y = src_pos[1] + dy_norm * node_radius
+        end_x = tgt_pos[0] - dx_norm * node_radius
+        end_y = tgt_pos[1] - dy_norm * node_radius
+        
+        # Use a consistent, moderate curvature for all edges to improve readability
+        # This makes edges curve slightly to avoid going straight through nodes
+        connection_style = "arc3,rad=0.2"
+        curvature_rad = 0.2
+        
+        # Make arrows much more prominent - increase linewidth and arrow size
+        arrow_lw = max(arrow_linewidth, 4.0)  # Minimum 4.0 for visibility
+        arrow_color = '#1A1A1A'  # Very dark, almost black for maximum contrast
+        arrow_mutation_scale = 60  # Much larger arrow heads - increased significantly
+        
+        # Filter lags to only include valid ones (<= max_lag if provided)
+        # max_lag=2 means valid lags are 0, 1, 2 (not 3)
+        # CRITICAL: Convert all lags to integers and strictly filter
+        filtered_lags = None
+        if edge.lags and len(edge.lags) > 0:
+            # Convert all lags to integers (handle strings, floats, etc.)
+            lags_as_ints = []
+            for lag in edge.lags:
+                try:
+                    lag_int = int(float(lag))  # Handle both int and float strings
+                    lags_as_ints.append(lag_int)
+                except (ValueError, TypeError):
+                    continue  # Skip invalid lag values
+            
+            if max_lag is not None:
+                # STRICT filtering: only include lags that are >= 0 and <= max_lag
+                # max_lag=2 means only 0, 1, 2 are valid (NOT 3)
+                max_lag_int = int(max_lag)  # Ensure max_lag is an integer
+                filtered_lags = [lag for lag in lags_as_ints if isinstance(lag, int) and lag >= 0 and lag <= max_lag_int]
+                # DOUBLE CHECK: Remove any lag > max_lag (safety check)
+                filtered_lags = [lag for lag in filtered_lags if lag <= max_lag_int]
+            else:
+                filtered_lags = lags_as_ints
+            
+            # Only use filtered_lags if it has values after filtering
+            if not filtered_lags or len(filtered_lags) == 0:
+                filtered_lags = None
+        
+        # We'll calculate label position after drawing each arrow
+        # Initialize to geometric midpoint as fallback
+        label_x = (start_x + end_x) / 2
+        label_y = (start_y + end_y) / 2
+        
+        # Determine arrow style based on edge type
+        # Use filled arrow styles for maximum visibility
+        if edge.edge_type == 'directed':
+            arrowstyle = '->'  # Filled arrow head
+            # Draw arrow from edge point to edge point (on circle boundaries)
+            arrow = FancyArrowPatch(
+                (start_x, start_y), (end_x, end_y),
+                arrowstyle=arrowstyle,
+                mutation_scale=arrow_mutation_scale,
+                lw=arrow_lw,
+                color=arrow_color,
+                zorder=1,
+                connectionstyle=connection_style,
+                shrinkA=0,
+                shrinkB=0,
+                fill=True,  # Fill arrow head
+            )
+            ax.add_patch(arrow)
+            
+            # Calculate label position from actual arrow path
+            try:
+                path = arrow.get_path()
+                vertices = path.vertices
+                if len(vertices) > 2:
+                    total_len = 0
+                    seg_lengths = []
+                    for i in range(len(vertices) - 1):
+                        dx = vertices[i+1][0] - vertices[i][0]
+                        dy = vertices[i+1][1] - vertices[i][1]
+                        seg_len = math.sqrt(dx*dx + dy*dy)
+                        seg_lengths.append(seg_len)
+                        total_len += seg_len
+                    target = total_len * 0.5
+                    cum = 0
+                    for i, seg_len in enumerate(seg_lengths):
+                        if cum + seg_len >= target:
+                            t_loc = (target - cum) / seg_len if seg_len > 0 else 0
+                            label_x = vertices[i][0] + t_loc * (vertices[i+1][0] - vertices[i][0])
+                            label_y = vertices[i][1] + t_loc * (vertices[i+1][1] - vertices[i][1])
+                            break
+                        cum += seg_len
+            except Exception:
+                label_x = (start_x + end_x) / 2
+                label_y = (start_y + end_y) / 2
+            
+            # Add lag labels if available
+            if filtered_lags and len(filtered_lags) > 0:
+                # Format: single lag as "1", multiple lags as "(1,2)"
+                sorted_lags = sorted(filtered_lags)
+                if len(sorted_lags) == 1:
+                    lag_str = str(sorted_lags[0])
+                else:
+                    lag_str = '(' + ','.join(map(str, sorted_lags)) + ')'
+                ax.text(label_x, label_y, lag_str,
+                       fontsize=8, ha='center', va='center',
+                       bbox=dict(boxstyle='round,pad=0.4', facecolor='white', 
+                               edgecolor=arrow_color, linewidth=1.5, alpha=0.95),
+                       zorder=12,
+                       weight='bold')
+        
+        elif edge.edge_type == 'bidirected':
+            # Draw bidirectional arrow with filled heads
+            arrow1 = FancyArrowPatch(
+                (start_x, start_y), (end_x, end_y),
+                arrowstyle='<->',
+                mutation_scale=arrow_mutation_scale,
+                lw=arrow_lw,
+                color=arrow_color,
+                zorder=1,
+                connectionstyle=connection_style,
+                shrinkA=0,
+                shrinkB=0,
+                fill=True,  # Fill arrow heads
+            )
+            ax.add_patch(arrow1)
+            
+            # Calculate label position from actual arrow path
+            try:
+                path = arrow1.get_path()
+                vertices = path.vertices
+                if len(vertices) > 2:
+                    total_len = 0
+                    seg_lengths = []
+                    for i in range(len(vertices) - 1):
+                        dx = vertices[i+1][0] - vertices[i][0]
+                        dy = vertices[i+1][1] - vertices[i][1]
+                        seg_len = math.sqrt(dx*dx + dy*dy)
+                        seg_lengths.append(seg_len)
+                        total_len += seg_len
+                    target = total_len * 0.5
+                    cum = 0
+                    for i, seg_len in enumerate(seg_lengths):
+                        if cum + seg_len >= target:
+                            t_loc = (target - cum) / seg_len if seg_len > 0 else 0
+                            label_x = vertices[i][0] + t_loc * (vertices[i+1][0] - vertices[i][0])
+                            label_y = vertices[i][1] + t_loc * (vertices[i+1][1] - vertices[i][1])
+                            break
+                        cum += seg_len
+            except Exception:
+                label_x = (start_x + end_x) / 2
+                label_y = (start_y + end_y) / 2
+            
+            # Add lag labels if available
+            if filtered_lags and len(filtered_lags) > 0:
+                # Format: single lag as "1", multiple lags as "(1,2)"
+                sorted_lags = sorted(filtered_lags)
+                if len(sorted_lags) == 1:
+                    lag_str = str(sorted_lags[0])
+                else:
+                    lag_str = '(' + ','.join(map(str, sorted_lags)) + ')'
+                ax.text(label_x, label_y, lag_str,
+                       fontsize=8, ha='center', va='center',
+                       bbox=dict(boxstyle='round,pad=0.4', facecolor='white', 
+                               edgecolor=arrow_color, linewidth=1.5, alpha=0.95),
+                       zorder=12,
+                       weight='bold')
+        
+        elif edge.edge_type == 'pag_circle_arrow':
+            # Draw arrow with circle at source (tail end)
+            arrow = FancyArrowPatch(
+                (start_x, start_y), (end_x, end_y),
+                arrowstyle='->',
+                mutation_scale=arrow_mutation_scale,
+                lw=arrow_lw,
+                color=arrow_color,
+                zorder=1,
+                connectionstyle=connection_style,
+                shrinkA=0,
+                shrinkB=0,
+                fill=True,  # Fill arrow head
+            )
+            ax.add_patch(arrow)
+            # Add circle at source - positioned at the edge point
+            circle_marker = Circle((start_x, start_y), node_radius * 0.5,
+                                  facecolor='white',
+                                  edgecolor=arrow_color,
+                                  linewidth=4,
+                                  zorder=5)  # Higher zorder to be on top
+            ax.add_patch(circle_marker)
+            
+            # Calculate label position from actual arrow path
+            try:
+                path = arrow.get_path()
+                vertices = path.vertices
+                if len(vertices) > 2:
+                    total_len = 0
+                    seg_lengths = []
+                    for i in range(len(vertices) - 1):
+                        dx = vertices[i+1][0] - vertices[i][0]
+                        dy = vertices[i+1][1] - vertices[i][1]
+                        seg_len = math.sqrt(dx*dx + dy*dy)
+                        seg_lengths.append(seg_len)
+                        total_len += seg_len
+                    target = total_len * 0.5
+                    cum = 0
+                    for i, seg_len in enumerate(seg_lengths):
+                        if cum + seg_len >= target:
+                            t_loc = (target - cum) / seg_len if seg_len > 0 else 0
+                            label_x = vertices[i][0] + t_loc * (vertices[i+1][0] - vertices[i][0])
+                            label_y = vertices[i][1] + t_loc * (vertices[i+1][1] - vertices[i][1])
+                            break
+                        cum += seg_len
+            except Exception:
+                label_x = (start_x + end_x) / 2
+                label_y = (start_y + end_y) / 2
+            
+            # Add lag labels if available
+            if filtered_lags and len(filtered_lags) > 0:
+                # Format: single lag as "1", multiple lags as "(1,2)"
+                sorted_lags = sorted(filtered_lags)
+                if len(sorted_lags) == 1:
+                    lag_str = str(sorted_lags[0])
+                else:
+                    lag_str = '(' + ','.join(map(str, sorted_lags)) + ')'
+                ax.text(label_x, label_y, lag_str,
+                       fontsize=8, ha='center', va='center',
+                       bbox=dict(boxstyle='round,pad=0.4', facecolor='white', 
+                               edgecolor=arrow_color, linewidth=1.5, alpha=0.95),
+                       zorder=12,
+                       weight='bold')
+        
+        elif edge.edge_type == 'pag_circle_circle':
+            # Draw line with circles at both ends
+            arrow = FancyArrowPatch(
+                (start_x, start_y), (end_x, end_y),
+                arrowstyle='-',
+                lw=arrow_lw,
+                color=arrow_color,
+                zorder=1,
+                connectionstyle=connection_style,
+                shrinkA=0,
+                shrinkB=0,
+            )
+            ax.add_patch(arrow)
+            # Add circles at both ends - positioned at edge points
+            for circle_x, circle_y in [(start_x, start_y), (end_x, end_y)]:
+                circle_marker = Circle((circle_x, circle_y), node_radius * 0.5,
+                                      facecolor='white',
+                                      edgecolor=arrow_color,
+                                      linewidth=4,
+                                      zorder=5)  # Higher zorder to be on top
+                ax.add_patch(circle_marker)
+            
+            # Calculate label position from actual arrow path
+            try:
+                path = arrow.get_path()
+                vertices = path.vertices
+                if len(vertices) > 2:
+                    total_len = 0
+                    seg_lengths = []
+                    for i in range(len(vertices) - 1):
+                        dx = vertices[i+1][0] - vertices[i][0]
+                        dy = vertices[i+1][1] - vertices[i][1]
+                        seg_len = math.sqrt(dx*dx + dy*dy)
+                        seg_lengths.append(seg_len)
+                        total_len += seg_len
+                    target = total_len * 0.5
+                    cum = 0
+                    for i, seg_len in enumerate(seg_lengths):
+                        if cum + seg_len >= target:
+                            t_loc = (target - cum) / seg_len if seg_len > 0 else 0
+                            label_x = vertices[i][0] + t_loc * (vertices[i+1][0] - vertices[i][0])
+                            label_y = vertices[i][1] + t_loc * (vertices[i+1][1] - vertices[i][1])
+                            break
+                        cum += seg_len
+            except Exception:
+                pass
+            
+            # Add lag labels if available
+            if filtered_lags and len(filtered_lags) > 0:
+                # Format: single lag as "1", multiple lags as "(1,2)"
+                sorted_lags = sorted(filtered_lags)
+                if len(sorted_lags) == 1:
+                    lag_str = str(sorted_lags[0])
+                else:
+                    lag_str = '(' + ','.join(map(str, sorted_lags)) + ')'
+                ax.text(label_x, label_y, lag_str,
+                       fontsize=8, ha='center', va='center',
+                       bbox=dict(boxstyle='round,pad=0.4', facecolor='white', 
+                               edgecolor=arrow_color, linewidth=1.5, alpha=0.95),
+                       zorder=12,
+                       weight='bold')
+        
+        elif edge.edge_type == 'undirected':
+            # Draw simple line - make it very prominent
+            arrow = FancyArrowPatch(
+                (start_x, start_y), (end_x, end_y),
+                arrowstyle='-',
+                lw=arrow_lw,
+                color=arrow_color,
+                zorder=1,
+                connectionstyle=connection_style,
+                shrinkA=0,
+                shrinkB=0,
+            )
+            ax.add_patch(arrow)
+            
+            # Calculate label position from actual arrow path
+            try:
+                path = arrow.get_path()
+                vertices = path.vertices
+                if len(vertices) > 2:
+                    total_len = 0
+                    seg_lengths = []
+                    for i in range(len(vertices) - 1):
+                        dx = vertices[i+1][0] - vertices[i][0]
+                        dy = vertices[i+1][1] - vertices[i][1]
+                        seg_len = math.sqrt(dx*dx + dy*dy)
+                        seg_lengths.append(seg_len)
+                        total_len += seg_len
+                    target = total_len * 0.5
+                    cum = 0
+                    for i, seg_len in enumerate(seg_lengths):
+                        if cum + seg_len >= target:
+                            t_loc = (target - cum) / seg_len if seg_len > 0 else 0
+                            label_x = vertices[i][0] + t_loc * (vertices[i+1][0] - vertices[i][0])
+                            label_y = vertices[i][1] + t_loc * (vertices[i+1][1] - vertices[i][1])
+                            break
+                        cum += seg_len
+            except Exception:
+                label_x = (start_x + end_x) / 2
+                label_y = (start_y + end_y) / 2
+            
+            # Add lag labels if available
+            if filtered_lags and len(filtered_lags) > 0:
+                # Format: single lag as "1", multiple lags as "(1,2)"
+                sorted_lags = sorted(filtered_lags)
+                if len(sorted_lags) == 1:
+                    lag_str = str(sorted_lags[0])
+                else:
+                    lag_str = '(' + ','.join(map(str, sorted_lags)) + ')'
+                ax.text(label_x, label_y, lag_str,
+                       fontsize=8, ha='center', va='center',
+                       bbox=dict(boxstyle='round,pad=0.4', facecolor='white', 
+                               edgecolor=arrow_color, linewidth=1.5, alpha=0.95),
+                       zorder=12,
+                       weight='bold')
+    
+    # Set axis limits with padding
+    all_x = [pos[0] for pos in node_positions.values()]
+    all_y = [pos[1] for pos in node_positions.values()]
+    margin = 0.5
+    ax.set_xlim(min(all_x) - margin, max(all_x) + margin)
+    ax.set_ylim(min(all_y) - margin, max(all_y) + margin)
+    
+    plt.tight_layout()
+    
+    if save_name:
+        # Ensure directory exists
+        save_path = Path(save_name)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Save the figure
+        plt.savefig(save_name, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close(fig)
+        print(f"Saved plot to: {save_name}")
+    else:
+        plt.show()
 
 
 def generate_plot_filename(

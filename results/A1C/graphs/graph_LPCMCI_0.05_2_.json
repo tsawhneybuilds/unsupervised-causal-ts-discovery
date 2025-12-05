@@ -1,0 +1,119 @@
+{
+  "nodes": [
+    "X1",
+    "X2",
+    "X3",
+    "X4",
+    "X5",
+    "X6",
+    "X7",
+    "X8"
+  ],
+  "edges": [
+    {
+      "src": "X2",
+      "tgt": "X1",
+      "edge_type": "directed",
+      "lags": [
+        0
+      ]
+    },
+    {
+      "src": "X1",
+      "tgt": "X3",
+      "edge_type": "bidirected",
+      "lags": [
+        0
+      ]
+    },
+    {
+      "src": "X1",
+      "tgt": "X6",
+      "edge_type": "bidirected",
+      "lags": [
+        0
+      ]
+    },
+    {
+      "src": "X8",
+      "tgt": "X1",
+      "edge_type": "pag_circle_arrow",
+      "lags": [
+        0
+      ]
+    },
+    {
+      "src": "X2",
+      "tgt": "X6",
+      "edge_type": "pag_circle_arrow",
+      "lags": [
+        2
+      ]
+    },
+    {
+      "src": "X3",
+      "tgt": "X2",
+      "edge_type": "directed",
+      "lags": [
+        1
+      ]
+    },
+    {
+      "src": "X4",
+      "tgt": "X3",
+      "edge_type": "pag_circle_arrow",
+      "lags": [
+        0
+      ]
+    },
+    {
+      "src": "X3",
+      "tgt": "X6",
+      "edge_type": "bidirected",
+      "lags": [
+        1,
+        0
+      ]
+    },
+    {
+      "src": "X8",
+      "tgt": "X3",
+      "edge_type": "pag_circle_arrow",
+      "lags": [
+        0
+      ]
+    },
+    {
+      "src": "X5",
+      "tgt": "X6",
+      "edge_type": "directed",
+      "lags": [
+        0
+      ]
+    },
+    {
+      "src": "X5",
+      "tgt": "X7",
+      "edge_type": "directed",
+      "lags": [
+        1
+      ]
+    },
+    {
+      "src": "X6",
+      "tgt": "X7",
+      "edge_type": "directed",
+      "lags": [
+        1
+      ]
+    },
+    {
+      "src": "X8",
+      "tgt": "X6",
+      "edge_type": "pag_circle_arrow",
+      "lags": [
+        0
+      ]
+    }
+  ]
+}

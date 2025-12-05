@@ -1,0 +1,2 @@
+Algorithm,Adj_P,Adj_R,F1_Adj,Arrow_P,Arrow_R,F1_Arrow,SHD,Time(s),Edges
+"LPCMCI-PARCORR(α=0.05, τ=2)",0.2,0.125,0.15384615384615385,0.0,0.0,,-99.0,1.4414610862731934,5

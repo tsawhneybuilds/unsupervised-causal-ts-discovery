@@ -1,0 +1,179 @@
+{
+  "nodes": [
+    "MonetaryShock_RR",
+    "FEDFUNDS",
+    "Output_IP_logdiff",
+    "assetprice_sp500_logdiff",
+    "RNUSBIS_logdiff",
+    "Investment_logdiff",
+    "NX GDP RATIO PCT",
+    "infl_exp",
+    "nfci_creditconditions",
+    "inflation_pce_yoy",
+    "Consumption_real_logdiff"
+  ],
+  "edges": [
+    {
+      "src": "MonetaryShock_RR",
+      "tgt": "FEDFUNDS",
+      "edge_type": "directed",
+      "lags": [
+        1
+      ]
+    },
+    {
+      "src": "FEDFUNDS",
+      "tgt": "Output_IP_logdiff",
+      "edge_type": "bidirected",
+      "lags": [
+        0
+      ]
+    },
+    {
+      "src": "FEDFUNDS",
+      "tgt": "nfci_creditconditions",
+      "edge_type": "undirected",
+      "lags": [
+        0
+      ]
+    },
+    {
+      "src": "Output_IP_logdiff",
+      "tgt": "Investment_logdiff",
+      "edge_type": "undirected",
+      "lags": [
+        0
+      ]
+    },
+    {
+      "src": "Output_IP_logdiff",
+      "tgt": "infl_exp",
+      "edge_type": "bidirected",
+      "lags": [
+        1
+      ]
+    },
+    {
+      "src": "Output_IP_logdiff",
+      "tgt": "Consumption_real_logdiff",
+      "edge_type": "bidirected",
+      "lags": [
+        2,
+        0
+      ]
+    },
+    {
+      "src": "assetprice_sp500_logdiff",
+      "tgt": "infl_exp",
+      "edge_type": "pag_circle_arrow",
+      "lags": [
+        2
+      ]
+    },
+    {
+      "src": "nfci_creditconditions",
+      "tgt": "assetprice_sp500_logdiff",
+      "edge_type": "directed",
+      "lags": [
+        0
+      ]
+    },
+    {
+      "src": "inflation_pce_yoy",
+      "tgt": "assetprice_sp500_logdiff",
+      "edge_type": "directed",
+      "lags": [
+        0
+      ]
+    },
+    {
+      "src": "Consumption_real_logdiff",
+      "tgt": "assetprice_sp500_logdiff",
+      "edge_type": "directed",
+      "lags": [
+        0
+      ]
+    },
+    {
+      "src": "RNUSBIS_logdiff",
+      "tgt": "nfci_creditconditions",
+      "edge_type": "bidirected",
+      "lags": [
+        2
+      ]
+    },
+    {
+      "src": "RNUSBIS_logdiff",
+      "tgt": "inflation_pce_yoy",
+      "edge_type": "bidirected",
+      "lags": [
+        1
+      ]
+    },
+    {
+      "src": "NX GDP RATIO PCT",
+      "tgt": "MonetaryShock_RR",
+      "edge_type": "pag_circle_arrow",
+      "lags": [
+        1
+      ]
+    },
+    {
+      "src": "NX GDP RATIO PCT",
+      "tgt": "RNUSBIS_logdiff",
+      "edge_type": "directed",
+      "lags": [
+        2
+      ]
+    },
+    {
+      "src": "inflation_pce_yoy",
+      "tgt": "FEDFUNDS",
+      "edge_type": "directed",
+      "lags": [
+        1
+      ]
+    },
+    {
+      "src": "infl_exp",
+      "tgt": "inflation_pce_yoy",
+      "edge_type": "bidirected",
+      "lags": [
+        2,
+        1
+      ]
+    },
+    {
+      "src": "nfci_creditconditions",
+      "tgt": "inflation_pce_yoy",
+      "edge_type": "bidirected",
+      "lags": [
+        2
+      ]
+    },
+    {
+      "src": "Consumption_real_logdiff",
+      "tgt": "inflation_pce_yoy",
+      "edge_type": "directed",
+      "lags": [
+        0
+      ]
+    },
+    {
+      "src": "RNUSBIS_logdiff",
+      "tgt": "Consumption_real_logdiff",
+      "edge_type": "bidirected",
+      "lags": [
+        2
+      ]
+    },
+    {
+      "src": "Consumption_real_logdiff",
+      "tgt": "Investment_logdiff",
+      "edge_type": "directed",
+      "lags": [
+        1
+      ]
+    }
+  ]
+}

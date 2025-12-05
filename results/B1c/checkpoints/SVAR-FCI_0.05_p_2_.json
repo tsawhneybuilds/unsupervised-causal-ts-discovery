@@ -1,0 +1,18 @@
+{
+  "algorithm_name": "SVAR-FCI(\u03b1=0.05, p=2)",
+  "safe_name": "SVAR-FCI_0.05_p_2_",
+  "elapsed_time": 0.6134300231933594,
+  "metrics": {
+    "adj_precision": 0.2,
+    "adj_recall": 0.125,
+    "f1_adj": 0.15384615384615385,
+    "arrow_precision": 0.0,
+    "arrow_recall": 0.0,
+    "f1_arrow": NaN,
+    "shd": -99.0
+  },
+  "error": null,
+  "graph_path": "results/B1c/graphs/graph_SVAR-FCI_0.05_p_2_.txt",
+  "edges": 5,
+  "created_at": "2025-12-05T00:27:02.668925Z"
+}

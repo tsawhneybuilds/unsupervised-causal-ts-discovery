@@ -1,0 +1,48 @@
+Graph Nodes:
+MonetaryShock_RR;FEDFUNDS;Output_IP_logdiff;assetprice_sp500_logdiff;RNUSBIS_logdiff;Investment_logdiff;NX GDP RATIO PCT;infl_exp;nfci_creditconditions;inflation_pce_yoy;Consumption_real_logdiff
+
+Graph Edges:
+1. MonetaryShock_RR --- FEDFUNDS
+2. MonetaryShock_RR --- Output_IP_logdiff
+3. MonetaryShock_RR --- assetprice_sp500_logdiff
+4. MonetaryShock_RR --- RNUSBIS_logdiff
+5. MonetaryShock_RR --- Investment_logdiff
+6. MonetaryShock_RR --- NX GDP RATIO PCT
+7. MonetaryShock_RR --- infl_exp
+8. MonetaryShock_RR --- nfci_creditconditions
+9. MonetaryShock_RR --- inflation_pce_yoy
+10. MonetaryShock_RR --- Consumption_real_logdiff
+11. FEDFUNDS --- Output_IP_logdiff
+12. FEDFUNDS --- assetprice_sp500_logdiff
+13. FEDFUNDS --- Investment_logdiff
+14. FEDFUNDS --- NX GDP RATIO PCT
+15. FEDFUNDS --- Consumption_real_logdiff
+16. Output_IP_logdiff --- assetprice_sp500_logdiff
+17. Output_IP_logdiff --- RNUSBIS_logdiff
+18. Output_IP_logdiff --- NX GDP RATIO PCT
+19. Output_IP_logdiff --- infl_exp
+20. Output_IP_logdiff --- nfci_creditconditions
+21. Output_IP_logdiff --- inflation_pce_yoy
+22. assetprice_sp500_logdiff --- RNUSBIS_logdiff
+23. assetprice_sp500_logdiff --- Investment_logdiff
+24. assetprice_sp500_logdiff --- NX GDP RATIO PCT
+25. assetprice_sp500_logdiff --- infl_exp
+26. assetprice_sp500_logdiff --- inflation_pce_yoy
+27. RNUSBIS_logdiff --- Investment_logdiff
+28. RNUSBIS_logdiff --- NX GDP RATIO PCT
+29. RNUSBIS_logdiff --- infl_exp
+30. RNUSBIS_logdiff --- nfci_creditconditions
+31. RNUSBIS_logdiff --- inflation_pce_yoy
+32. RNUSBIS_logdiff --- Consumption_real_logdiff
+33. Investment_logdiff --- NX GDP RATIO PCT
+34. Investment_logdiff --- infl_exp
+35. Investment_logdiff --- inflation_pce_yoy
+36. Investment_logdiff --- Consumption_real_logdiff
+37. NX GDP RATIO PCT --- infl_exp
+38. NX GDP RATIO PCT --- nfci_creditconditions
+39. NX GDP RATIO PCT --- inflation_pce_yoy
+40. NX GDP RATIO PCT --- Consumption_real_logdiff
+41. infl_exp --- nfci_creditconditions
+42. infl_exp --- Consumption_real_logdiff
+43. nfci_creditconditions --- Consumption_real_logdiff
+44. inflation_pce_yoy --- Consumption_real_logdiff

@@ -20,6 +20,7 @@ from .graph_io import (
     parse_tetrad_graph_file, 
     parse_tetrad_graph_string,
     write_tetrad_graph_file,
+    write_standard_graph_json,
     standard_graph_to_tetrad
 )
 from .metrics import compute_core_metrics, compute_all_metrics
@@ -193,8 +194,10 @@ class ComparisonRunner:
             if not result.error:
                 safe_name = result.algorithm_name.replace(' ', '_').replace('=', '_')
                 safe_name = ''.join(c for c in safe_name if c.isalnum() or c in '_-')
-                graph_path = os.path.join(output_dir, f'graph_{safe_name}.txt')
-                write_tetrad_graph_file(result.graph, graph_path)
+                graph_txt_path = os.path.join(output_dir, f'graph_{safe_name}.txt')
+                graph_json_path = os.path.join(output_dir, f'graph_{safe_name}.json')
+                write_tetrad_graph_file(result.graph, graph_txt_path)
+                write_standard_graph_json(result.graph, graph_json_path)
         
         # Save reference graph
         ref_path = os.path.join(output_dir, 'reference_graph.txt')
@@ -394,4 +397,3 @@ def run_comparison_from_files(
         output_dir=output_dir,
         verbose=verbose
     )
-

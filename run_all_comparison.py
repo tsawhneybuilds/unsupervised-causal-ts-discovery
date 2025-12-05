@@ -265,7 +265,10 @@ def build_algorithms(
     registry = [
         ("svar-fci", lambda: SVARFCIWrapper(alpha=alpha, max_lag=max_lag, use_selection=False), False),
         ("svar-gfci", lambda: SVARGFCIWrapper(alpha=alpha, max_lag=max_lag), False),
-        ("lpcmci", lambda: LPCMCIWrapper(alpha=alpha, max_lag=max_lag, cond_ind_test="parcorr"), False),
+        ("lpcmci-parcorr", lambda: LPCMCIWrapper(alpha=alpha, max_lag=max_lag, cond_ind_test="parcorr"), False),
+        ("lpcmci-cmiknn", lambda: LPCMCIWrapper(alpha=alpha, max_lag=max_lag, cond_ind_test="cmiknn"), False),
+        ("lpcmci-gpdc", lambda: LPCMCIWrapper(alpha=alpha, max_lag=max_lag, cond_ind_test="gpdc"), False),
+        ("lpcmci-gdpc", lambda: LPCMCIWrapper(alpha=alpha, max_lag=max_lag, cond_ind_test="gpdc"), False),  # Alias for gpdc
         ("pc", lambda: CausalLearnPCWrapper(alpha=alpha), False),
         ("fci", lambda: CausalLearnFCIWrapper(alpha=alpha), False),
         ("ges", lambda: CausalLearnGESWrapper(), False),

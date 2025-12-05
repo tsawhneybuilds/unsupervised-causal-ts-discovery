@@ -19,7 +19,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional, Set
 
 import numpy as np
 import pandas as pd
@@ -30,14 +30,154 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from compare.graph_io import (  # noqa: E402
     StandardGraph,
+    Edge,
     apply_variable_map,
     get_reverse_map,
     load_variable_map,
+    read_standard_graph_json,
     parse_tetrad_graph_file,
 )
 from compare.metrics import compute_core_metrics  # noqa: E402
-from compare.plotting import generate_plot_filename, plot_graph_tigramite  # noqa: E402
+from compare.plotting import generate_plot_filename, plot_graph_tigramite, plot_graph_custom_layout  # noqa: E402
 from run_comparison import DATASETS, get_dataset_config  # noqa: E402
+
+
+# =============================================================================
+# Summary graph collapse (one entry per variable pair with lag count)
+# =============================================================================
+
+def _classify_pair(name_a: str, name_b: str, info: dict) -> Edge:
+    """
+    Apply the requested summary-edge rules and attach a single lag entry
+    that encodes how many distinct lags the pair appeared at (if available).
+    """
+    lag_count = len(info["lags"])
+    lags = [lag_count] if lag_count > 0 else None
+
+    arrow_a = info["arrow_a"]
+    arrow_b = info["arrow_b"]
+    tail_a = info["tail_a"]
+    tail_b = info["tail_b"]
+    circle_a = info["circle_a"]
+    circle_b = info["circle_b"]
+    tail_arrow_a_to_b = info["tail_arrow_a_to_b"]
+    tail_arrow_b_to_a = info["tail_arrow_b_to_a"]
+
+    # X -> Y: evidence of tail->arrow and no arrow/circle at source
+    if tail_arrow_a_to_b and not arrow_a and not circle_a:
+        return Edge(name_a, name_b, "directed", lags=lags)
+    if tail_arrow_b_to_a and not arrow_b and not circle_b:
+        return Edge(name_b, name_a, "directed", lags=lags)
+
+    # X <-> Y: arrowheads at both endpoints
+    if arrow_a and arrow_b:
+        return Edge(name_a, name_b, "bidirected", lags=lags)
+
+    # X o-> Y: circle at source, arrow at target
+    if circle_a and arrow_b:
+        return Edge(name_a, name_b, "pag_circle_arrow", lags=lags)
+    if circle_b and arrow_a:
+        return Edge(name_b, name_a, "pag_circle_arrow", lags=lags)
+
+    # X o-o Y: circles at both, or circle + tail (uncertain direction)
+    if circle_a and circle_b:
+        return Edge(name_a, name_b, "pag_circle_circle", lags=lags)
+    if (circle_a and tail_b and not arrow_b) or (circle_b and tail_a and not arrow_a):
+        return Edge(name_a, name_b, "pag_circle_circle", lags=lags)
+
+    # X — Y: only tails, no arrows or circles
+    if tail_a and tail_b and not arrow_a and not arrow_b and not circle_a and not circle_b:
+        return Edge(name_a, name_b, "undirected", lags=lags)
+
+    # Fallback to undirected while preserving adjacency
+    return Edge(name_a, name_b, "undirected", lags=lags)
+
+
+def collapse_to_single_entry(graph: StandardGraph) -> StandardGraph:
+    """
+    Collapse a StandardGraph to a single summary edge per variable pair.
+
+    - Groups edges across all lags.
+    - Removes pure autoregressive edges X -> X.
+    - Applies PAG-aware orientation rules described in the request.
+    - Encodes the number of distinct lags as a single lag value (for labeling).
+    """
+    pair_info: Dict[tuple, dict] = {}
+
+    for edge in graph.edges:
+        # Drop pure autoregressive edges
+        if edge.src == edge.tgt:
+            continue
+
+        # Normalize pair ordering alphabetically
+        if edge.src < edge.tgt:
+            key = (edge.src, edge.tgt)
+            src_is_a = True  # src corresponds to a
+        else:
+            key = (edge.tgt, edge.src)
+            src_is_a = False  # src corresponds to b
+
+        if key not in pair_info:
+            pair_info[key] = {
+                "arrow_a": False,
+                "arrow_b": False,
+                "tail_a": False,
+                "tail_b": False,
+                "circle_a": False,
+                "circle_b": False,
+                "tail_arrow_a_to_b": False,
+                "tail_arrow_b_to_a": False,
+                "lags": set(),  # type: ignore
+            }
+
+        info = pair_info[key]
+
+        # Update marks based on orientation, respecting whether src maps to a or b
+        etype = edge.edge_type
+        if etype == "directed":
+            if src_is_a:
+                info["tail_a"] = True
+                info["arrow_b"] = True
+                info["tail_arrow_a_to_b"] = True
+            else:
+                info["tail_b"] = True
+                info["arrow_a"] = True
+                info["tail_arrow_b_to_a"] = True
+        elif etype == "bidirected":
+            info["arrow_a"] = True
+            info["arrow_b"] = True
+        elif etype == "pag_circle_arrow":
+            if src_is_a:
+                info["circle_a"] = True
+                info["arrow_b"] = True
+            else:
+                info["circle_b"] = True
+                info["arrow_a"] = True
+        elif etype == "pag_circle_circle":
+            info["circle_a"] = True
+            info["circle_b"] = True
+        elif etype == "undirected":
+            info["tail_a"] = True
+            info["tail_b"] = True
+
+        # Record lags if present
+        if edge.lags:
+            info["lags"].update(edge.lags)
+
+    summary_edges: List[Edge] = []
+    for (a, b), info in pair_info.items():
+        summary_edges.append(_classify_pair(a, b, info))
+
+    return StandardGraph(nodes=graph.nodes, edges=summary_edges)
+
+
+def max_lag_for_graph(graph: StandardGraph) -> int:
+    """Get the maximum lag value encoded on edges (using 0 if none)."""
+    max_lag = 0
+    for e in graph.edges:
+        if e.lags:
+            max_lag = max(max_lag, max(e.lags))
+    return max_lag
 
 
 def parse_args() -> argparse.Namespace:
@@ -143,7 +283,7 @@ def filter_to_reference(graph: StandardGraph, ref_nodes: List[str]) -> StandardG
 
 
 def plot_graph(graph: StandardGraph, plot_dir: Path, algo_name: str, alpha: float, max_lag: int, dataset: str, var_map: Dict[str, str]):
-    """Plot a single graph with tigramite-style visualization."""
+    """Plot a single graph with custom fixed layout visualization."""
     plot_dir.mkdir(parents=True, exist_ok=True)
     save_name = generate_plot_filename(
         algorithm_name=algo_name,
@@ -151,7 +291,7 @@ def plot_graph(graph: StandardGraph, plot_dir: Path, algo_name: str, alpha: floa
         output_dir=str(plot_dir),
         dataset_name=dataset,
     )
-    plot_graph_tigramite(
+    plot_graph_custom_layout(
         graph=graph,
         var_names=graph.nodes,
         save_name=save_name,
@@ -220,12 +360,26 @@ def main():
     if not graphs_dir.exists():
         sys.exit(f"Graphs directory not found: {graphs_dir}")
 
+    # Prefer JSON graphs (preserve lag info) but fall back to .txt if needed
+    graph_files = {}
+    for json_file in graphs_dir.glob("graph_*.json"):
+        stem = json_file.stem.replace("graph_", "")
+        graph_files[stem] = json_file
+    for txt_file in graphs_dir.glob("graph_*.txt"):
+        stem = txt_file.stem.replace("graph_", "")
+        graph_files.setdefault(stem, txt_file)
+
     results = []
-    for graph_file in sorted(graphs_dir.glob("*.txt")):
-        algo_name = graph_file.stem.replace("graph_", "")
+    for algo_key in sorted(graph_files.keys()):
+        graph_file = graph_files[algo_key]
+        algo_name = algo_key
         try:
-            g = parse_tetrad_graph_file(str(graph_file))
+            if graph_file.suffix.lower() == ".json":
+                g = read_standard_graph_json(str(graph_file))
+            else:
+                g = parse_tetrad_graph_file(str(graph_file))
             g = filter_to_reference(g, ref_nodes)
+            g = collapse_to_single_entry(g)
         except Exception as exc:
             results.append({"Algorithm": algo_name, "Error": f"Failed to load: {exc}"})
             continue
@@ -258,12 +412,16 @@ def main():
 
         if not args.no_plot:
             try:
+                # Ensure lag index large enough to keep the single encoded entry
+                # Use args.max_lag to FILTER, not to expand
+                # We want to show only lags <= args.max_lag, not take the max of both
+                plot_max_lag = args.max_lag
                 save_path = plot_graph(
                     graph=g,
                     plot_dir=resolve_path(args.plot_dir),
                     algo_name=algo_name,
                     alpha=args.alpha,
-                    max_lag=args.max_lag,
+                    max_lag=plot_max_lag,
                     dataset=args.dataset,
                     var_map=plot_var_map,
                 )

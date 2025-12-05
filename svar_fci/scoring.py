@@ -88,6 +88,11 @@ def icf_bic_score(Z: np.ndarray, G: DynamicPAG):
     if p < 2:
         return {"loglik": -np.inf, "df": 0, "bic": np.inf}
     
+    # Check for constant columns (zero variance) which cause NaN in covariance
+    col_vars = np.var(Z, axis=0, ddof=1)
+    if np.any(col_vars == 0) or np.any(np.isnan(col_vars)):
+        return {"loglik": -np.inf, "df": 0, "bic": np.inf}
+    
     S = np.cov(Z, rowvar=False)
     
     # Ensure S is 2D (np.cov can return scalar for 1D input)
@@ -96,10 +101,18 @@ def icf_bic_score(Z: np.ndarray, G: DynamicPAG):
     elif S.ndim == 1:
         S = S.reshape(-1, 1)
     
+    # Check for NaN or Inf in covariance matrix (can happen with constant columns or insufficient data)
+    if np.any(np.isnan(S)) or np.any(np.isinf(S)):
+        return {"loglik": -np.inf, "df": 0, "bic": np.inf}
+    
     amat = pag_to_mag(G)
     
     # Validate matrices are not empty
     if S.size == 0 or amat.size == 0:
+        return {"loglik": -np.inf, "df": 0, "bic": np.inf}
+    
+    # Check for NaN or Inf in adjacency matrix (shouldn't happen, but be safe)
+    if np.any(np.isnan(amat)) or np.any(np.isinf(amat)):
         return {"loglik": -np.inf, "df": 0, "bic": np.inf}
     
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -174,7 +187,7 @@ def icf_bic_score(Z: np.ndarray, G: DynamicPAG):
             cat(loglik, fit$df, bic, sep=",", file="{out_path}")
         }}, error = function(e) {{
             # Fallback for singular matrices or failures
-            # message(paste("R Error:", conditionMessage(e)))
+            message(paste("R Error:", conditionMessage(e)))
             cat("-Inf,0,Inf", file="{out_path}")
         }})
         """

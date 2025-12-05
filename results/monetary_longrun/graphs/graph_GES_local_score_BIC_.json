@@ -1,0 +1,281 @@
+{
+  "nodes": [
+    "MonetaryShock_RR",
+    "FEDFUNDS",
+    "Output_IP_logdiff",
+    "assetprice_sp500_logdiff",
+    "RNUSBIS_logdiff",
+    "Investment_logdiff",
+    "NX GDP RATIO PCT",
+    "infl_exp",
+    "nfci_creditconditions",
+    "inflation_pce_yoy",
+    "Consumption_real_logdiff"
+  ],
+  "edges": [
+    {
+      "src": "MonetaryShock_RR",
+      "tgt": "FEDFUNDS",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "MonetaryShock_RR",
+      "tgt": "Output_IP_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "MonetaryShock_RR",
+      "tgt": "assetprice_sp500_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "MonetaryShock_RR",
+      "tgt": "RNUSBIS_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "MonetaryShock_RR",
+      "tgt": "Investment_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "MonetaryShock_RR",
+      "tgt": "NX GDP RATIO PCT",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "MonetaryShock_RR",
+      "tgt": "infl_exp",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "MonetaryShock_RR",
+      "tgt": "nfci_creditconditions",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "MonetaryShock_RR",
+      "tgt": "inflation_pce_yoy",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "MonetaryShock_RR",
+      "tgt": "Consumption_real_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "FEDFUNDS",
+      "tgt": "Output_IP_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "FEDFUNDS",
+      "tgt": "assetprice_sp500_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "FEDFUNDS",
+      "tgt": "Investment_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "FEDFUNDS",
+      "tgt": "NX GDP RATIO PCT",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "FEDFUNDS",
+      "tgt": "Consumption_real_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "Output_IP_logdiff",
+      "tgt": "assetprice_sp500_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "Output_IP_logdiff",
+      "tgt": "RNUSBIS_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "Output_IP_logdiff",
+      "tgt": "NX GDP RATIO PCT",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "Output_IP_logdiff",
+      "tgt": "infl_exp",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "Output_IP_logdiff",
+      "tgt": "nfci_creditconditions",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "Output_IP_logdiff",
+      "tgt": "inflation_pce_yoy",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "assetprice_sp500_logdiff",
+      "tgt": "RNUSBIS_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "assetprice_sp500_logdiff",
+      "tgt": "Investment_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "assetprice_sp500_logdiff",
+      "tgt": "NX GDP RATIO PCT",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "assetprice_sp500_logdiff",
+      "tgt": "infl_exp",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "assetprice_sp500_logdiff",
+      "tgt": "inflation_pce_yoy",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "RNUSBIS_logdiff",
+      "tgt": "Investment_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "RNUSBIS_logdiff",
+      "tgt": "NX GDP RATIO PCT",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "RNUSBIS_logdiff",
+      "tgt": "infl_exp",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "RNUSBIS_logdiff",
+      "tgt": "nfci_creditconditions",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "RNUSBIS_logdiff",
+      "tgt": "inflation_pce_yoy",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "RNUSBIS_logdiff",
+      "tgt": "Consumption_real_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "Investment_logdiff",
+      "tgt": "NX GDP RATIO PCT",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "Investment_logdiff",
+      "tgt": "infl_exp",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "Investment_logdiff",
+      "tgt": "inflation_pce_yoy",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "Investment_logdiff",
+      "tgt": "Consumption_real_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "NX GDP RATIO PCT",
+      "tgt": "infl_exp",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "NX GDP RATIO PCT",
+      "tgt": "nfci_creditconditions",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "NX GDP RATIO PCT",
+      "tgt": "inflation_pce_yoy",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "NX GDP RATIO PCT",
+      "tgt": "Consumption_real_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "infl_exp",
+      "tgt": "nfci_creditconditions",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "infl_exp",
+      "tgt": "Consumption_real_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "nfci_creditconditions",
+      "tgt": "Consumption_real_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    },
+    {
+      "src": "inflation_pce_yoy",
+      "tgt": "Consumption_real_logdiff",
+      "edge_type": "undirected",
+      "lags": []
+    }
+  ]
+}

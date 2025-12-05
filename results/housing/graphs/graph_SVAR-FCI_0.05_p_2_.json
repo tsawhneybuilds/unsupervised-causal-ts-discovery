@@ -1,0 +1,51 @@
+{
+  "nodes": [
+    "cons_logdiff",
+    "output_logdiff",
+    "mortgage_rate",
+    "credit_logdiff",
+    "houseprices_logdiff",
+    "policyrate"
+  ],
+  "edges": [
+    {
+      "src": "cons_logdiff",
+      "tgt": "output_logdiff",
+      "edge_type": "bidirected",
+      "lags": [
+        2,
+        1,
+        0
+      ]
+    },
+    {
+      "src": "cons_logdiff",
+      "tgt": "credit_logdiff",
+      "edge_type": "bidirected",
+      "lags": [
+        2,
+        1,
+        0
+      ]
+    },
+    {
+      "src": "credit_logdiff",
+      "tgt": "output_logdiff",
+      "edge_type": "directed",
+      "lags": [
+        2,
+        1
+      ]
+    },
+    {
+      "src": "credit_logdiff",
+      "tgt": "houseprices_logdiff",
+      "edge_type": "directed",
+      "lags": [
+        2,
+        1,
+        0
+      ]
+    }
+  ]
+}

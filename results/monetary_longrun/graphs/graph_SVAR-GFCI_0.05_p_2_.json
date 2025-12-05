@@ -1,0 +1,72 @@
+{
+  "nodes": [
+    "MonetaryShock_RR",
+    "FEDFUNDS",
+    "Output_IP_logdiff",
+    "assetprice_sp500_logdiff",
+    "RNUSBIS_logdiff",
+    "Investment_logdiff",
+    "NX GDP RATIO PCT",
+    "infl_exp",
+    "nfci_creditconditions",
+    "inflation_pce_yoy",
+    "Consumption_real_logdiff"
+  ],
+  "edges": [
+    {
+      "src": "NX GDP RATIO PCT",
+      "tgt": "MonetaryShock_RR",
+      "edge_type": "pag_circle_arrow",
+      "lags": [
+        2,
+        1
+      ]
+    },
+    {
+      "src": "Investment_logdiff",
+      "tgt": "Output_IP_logdiff",
+      "edge_type": "pag_circle_arrow",
+      "lags": [
+        2,
+        1,
+        0
+      ]
+    },
+    {
+      "src": "Output_IP_logdiff",
+      "tgt": "Consumption_real_logdiff",
+      "edge_type": "directed",
+      "lags": [
+        2,
+        1,
+        0
+      ]
+    },
+    {
+      "src": "assetprice_sp500_logdiff",
+      "tgt": "Consumption_real_logdiff",
+      "edge_type": "directed",
+      "lags": [
+        2,
+        1,
+        0
+      ]
+    },
+    {
+      "src": "NX GDP RATIO PCT",
+      "tgt": "RNUSBIS_logdiff",
+      "edge_type": "directed",
+      "lags": [
+        2
+      ]
+    },
+    {
+      "src": "inflation_pce_yoy",
+      "tgt": "infl_exp",
+      "edge_type": "directed",
+      "lags": [
+        2
+      ]
+    }
+  ]
+}

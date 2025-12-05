@@ -476,7 +476,8 @@ class LPCMCIWrapper(AlgorithmWrapper):
     
     @property
     def name(self) -> str:
-        return f"LPCMCI(α={self.alpha}, τ={self.max_lag})"
+        test_name = self.cond_ind_test.upper() if self.cond_ind_test != 'cmiknn' else 'CMI-KNN'
+        return f"LPCMCI-{test_name}(α={self.alpha}, τ={self.max_lag})"
     
     def fit(self, data: np.ndarray, var_names: List[str]) -> StandardGraph:
         """Run LPCMCI and collapse to summary graph."""
@@ -511,6 +512,10 @@ class LPCMCIWrapper(AlgorithmWrapper):
             ci_test = RegressionCI(significance='analytic')
         elif self.cond_ind_test == 'cmiknn':
             ci_test = CMIknn(significance='shuffle_test')
+        elif self.cond_ind_test == 'gpdc':
+            # Import GPDC only when needed (requires dcor package)
+            from tigramite.independence_tests.gpdc import GPDC
+            ci_test = GPDC(significance='shuffle_test')
         else:
             # Default to RegressionCI
             ci_test = RegressionCI(significance='analytic')

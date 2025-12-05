@@ -21,6 +21,7 @@ Edge types:
     o-o : PAG circle-circle
 """
 
+import json
 import re
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional, Set
@@ -82,6 +83,51 @@ class StandardGraph:
             elif e.tgt == node:
                 adj.add(e.src)
         return adj
+
+
+# =============================================================================
+# JSON serialization helpers (preserve lag information)
+# =============================================================================
+
+def standard_graph_to_dict(graph: StandardGraph) -> dict:
+    """
+    Convert a StandardGraph to a JSON-serializable dict, preserving lags.
+    """
+    return {
+        "nodes": list(graph.nodes),
+        "edges": [
+            {
+                "src": edge.src,
+                "tgt": edge.tgt,
+                "edge_type": edge.edge_type,
+                # Store empty list instead of None to simplify serialization
+                "lags": list(edge.lags) if edge.lags is not None else [],
+            }
+            for edge in graph.edges
+        ],
+    }
+
+
+def write_standard_graph_json(graph: StandardGraph, filepath: str) -> None:
+    """Write a StandardGraph (including lag info) to JSON."""
+    with open(filepath, "w") as f:
+        json.dump(standard_graph_to_dict(graph), f, indent=2)
+
+
+def read_standard_graph_json(filepath: str) -> StandardGraph:
+    """Load a StandardGraph (including lags) from JSON."""
+    with open(filepath, "r") as f:
+        data = json.load(f)
+
+    edges = []
+    for item in data.get("edges", []):
+        lags = item.get("lags")
+        # Normalize lags: [] -> None for consistency with in-memory graphs
+        lags = None if lags == [] else lags
+        edge_type = item.get("edge_type") or item.get("type") or "directed"
+        edges.append(Edge(item["src"], item["tgt"], edge_type, lags=lags))
+
+    return StandardGraph(nodes=data.get("nodes", []), edges=edges)
 
 
 def parse_tetrad_edge(edge_str: str) -> Optional[Edge]:
@@ -450,4 +496,3 @@ def print_variable_mapping(var_map: dict, title: str = "Variable Mapping"):
     for graph_name, data_name in var_map.items():
         print(f"{graph_name:<25} {data_name:<25}")
     print("-" * 50)
-

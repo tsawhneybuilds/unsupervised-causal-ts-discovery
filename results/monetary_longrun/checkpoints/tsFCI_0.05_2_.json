@@ -1,7 +1,7 @@
 {
   "algorithm_name": "tsFCI(\u03b1=0.05, \u03c4=2)",
   "safe_name": "tsFCI_0.05_2_",
-  "elapsed_time": 1.5855200290679932,
+  "elapsed_time": 1.5259273052215576,
   "metrics": {
     "adj_precision": 0.40540540540540543,
     "adj_recall": 0.7894736842105263,
@@ -13,6 +13,7 @@
   },
   "error": null,
   "graph_path": "results/monetary_longrun/graphs/graph_tsFCI_0.05_2_.txt",
+  "graph_json_path": "results/monetary_longrun/graphs/graph_tsFCI_0.05_2_.json",
   "edges": 37,
-  "created_at": "2025-12-04T05:05:28.564831Z"
+  "created_at": "2025-12-04T17:22:54.729094Z"
 }

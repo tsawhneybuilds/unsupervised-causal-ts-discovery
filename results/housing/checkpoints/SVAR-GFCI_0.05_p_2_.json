@@ -1,0 +1,18 @@
+{
+  "algorithm_name": "SVAR-GFCI(\u03b1=0.05, p=2)",
+  "safe_name": "SVAR-GFCI_0.05_p_2_",
+  "elapsed_time": 1.0930087566375732,
+  "metrics": {
+    "adj_precision": 0.4,
+    "adj_recall": 0.4,
+    "f1_adj": 0.4000000000000001,
+    "arrow_precision": 0.3333333333333333,
+    "arrow_recall": 0.4,
+    "f1_arrow": 0.3636363636363636,
+    "shd": -99.0
+  },
+  "error": null,
+  "graph_path": "results/housing/graphs/graph_SVAR-GFCI_0.05_p_2_.txt",
+  "edges": 5,
+  "created_at": "2025-12-05T02:22:59.288352Z"
+}

@@ -1,0 +1,18 @@
+{
+  "algorithm_name": "LPCMCI-CMI-KNN(\u03b1=0.05, \u03c4=2)",
+  "safe_name": "LPCMCI-CMI-KNN_0.05_2_",
+  "elapsed_time": 495.4905700683594,
+  "metrics": {
+    "adj_precision": 0.6666666666666666,
+    "adj_recall": 0.4,
+    "f1_adj": 0.5,
+    "arrow_precision": 0.0,
+    "arrow_recall": 0.0,
+    "f1_arrow": NaN,
+    "shd": -99.0
+  },
+  "error": null,
+  "graph_path": "results/housing/graphs/graph_LPCMCI-CMI-KNN_0.05_2_.txt",
+  "edges": 3,
+  "created_at": "2025-12-05T03:09:40.920288Z"
+}

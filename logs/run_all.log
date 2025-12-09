@@ -38,3 +38,30 @@ Running SVAR-FCI(α=0.05, p=2) ...
   Updated summary -> results/monetary_longrun/comparison_results.csv
 
 Running SVAR-GFCI(α=0.05, p=2) ...
+  ERROR in 176056.74s | checkpoint: results/monetary_longrun/checkpoints/SVAR-GFCI_0.05_p_2_.json
+  Updated summary -> results/monetary_longrun/comparison_results.csv
+
+Running LPCMCI(α=0.05, τ=2) ...
+  ERROR in 2.15s | checkpoint: results/monetary_longrun/checkpoints/LPCMCI_0.05_2_.json
+  Updated summary -> results/monetary_longrun/comparison_results.csv
+
+Running PC(α=0.05) ...
+  ERROR in 0.00s | checkpoint: results/monetary_longrun/checkpoints/PC_0.05_.json
+  Updated summary -> results/monetary_longrun/comparison_results.csv
+
+Running FCI(α=0.05) ...
+  ERROR in 0.00s | checkpoint: results/monetary_longrun/checkpoints/FCI_0.05_.json
+  Updated summary -> results/monetary_longrun/comparison_results.csv
+
+Running GES(local_score_BIC) ...
+  ERROR in 0.00s | checkpoint: results/monetary_longrun/checkpoints/GES_local_score_BIC_.json
+  Updated summary -> results/monetary_longrun/comparison_results.csv
+
+Running tsFCI(α=0.05, τ=2) ...
+  ERROR in 0.00s | checkpoint: results/monetary_longrun/checkpoints/tsFCI_0.05_2_.json
+  Updated summary -> results/monetary_longrun/comparison_results.csv
+
+All requested algorithms processed.
+Results: results/monetary_longrun/comparison_results.csv
+Checkpoints: results/monetary_longrun/checkpoints
+Plots: results/monetary_longrun/plots

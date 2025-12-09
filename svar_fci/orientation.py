@@ -1,4 +1,5 @@
 from collections import deque
+import sys
 from typing import Set, List, Generator
 
 from .graph import DynamicPAG, NULL, CIRCLE, ARROW, TAIL
@@ -93,13 +94,20 @@ def is_circle_path(graph: DynamicPAG, path: List[int]) -> bool:
     return True
 
 
-def uncovered_circle_paths(graph: DynamicPAG, a: int, b: int) -> Generator[List[int], None, None]:
+def uncovered_circle_paths(graph: DynamicPAG, a: int, b: int, max_paths: int = 1000, max_depth: int = 160) -> Generator[List[int], None, None]:
     """
     Generate uncovered circle-circle paths from a to b (length >= 3).
+    
+    Args:
+        max_paths: Maximum number of valid paths to yield (default 1000)
+        max_depth: Maximum path length to explore (default 160)
     """
     queue = deque([[a]])
-    while queue:
+    paths_found = 0
+    while queue and paths_found < max_paths:
         path = queue.popleft()
+        if len(path) > max_depth:
+            continue
         last = path[-1]
         for nb in graph.neighbors(last):
             if nb in path:
@@ -110,6 +118,7 @@ def uncovered_circle_paths(graph: DynamicPAG, a: int, b: int) -> Generator[List[
             if not is_uncovered(graph, new_path):
                 continue
             if nb == b and len(new_path) >= 3:
+                paths_found += 1
                 yield new_path
             else:
                 queue.append(new_path)
@@ -126,10 +135,20 @@ def is_pd_edge(graph: DynamicPAG, u: int, v: int) -> bool:
     return graph.M[v, u] != ARROW and graph.M[u, v] != TAIL
 
 
-def uncovered_pd_paths(graph: DynamicPAG, start: int, end: int) -> Generator[List[int], None, None]:
+def uncovered_pd_paths(graph: DynamicPAG, start: int, end: int, max_paths: int = 1000, max_depth: int = 160) -> Generator[List[int], None, None]:
+    """
+    Generate uncovered potentially-directed paths with limits.
+    
+    Args:
+        max_paths: Maximum number of valid paths to yield (default 1000)
+        max_depth: Maximum path length to explore (default 160)
+    """
     stack = [(start, [start])]
-    while stack:
+    paths_found = 0
+    while stack and paths_found < max_paths:
         node, path = stack.pop()
+        if len(path) > max_depth:
+            continue
         for nb in graph.neighbors(node):
             if nb in path:
                 continue
@@ -139,6 +158,7 @@ def uncovered_pd_paths(graph: DynamicPAG, start: int, end: int) -> Generator[Lis
             if not is_uncovered(graph, new_path):
                 continue
             if nb == end:
+                paths_found += 1
                 yield new_path
             else:
                 stack.append((nb, new_path))
@@ -177,14 +197,21 @@ def is_discriminating_path(graph: DynamicPAG, path: List[int], beta: int, theta:
     return True
 
 
-def discriminating_paths(graph: DynamicPAG, theta: int, gamma: int, beta: int) -> Generator[List[int], None, None]:
+def discriminating_paths(graph: DynamicPAG, theta: int, gamma: int, beta: int, max_paths: int = 1000, max_checked: int = 100000) -> Generator[List[int], None, None]:
     """
     Generate simple paths from theta to gamma that are discriminating for beta.
+    
+    Args:
+        max_paths: Maximum number of valid paths to yield (default 1000)
+        max_checked: Maximum number of path states to explore (default 100000)
     """
     stack = [(theta, [theta])]
-    n_limit = graph.n_nodes + 1
-    while stack:
+    n_limit = min(graph.n_nodes + 1, 240)  # Cap max path length to prevent explosion
+    paths_found = 0
+    checked = 0
+    while stack and paths_found < max_paths and checked < max_checked:
         node, path = stack.pop()
+        checked += 1
         for nb in graph.neighbors(node):
             if nb in path:
                 continue
@@ -193,6 +220,7 @@ def discriminating_paths(graph: DynamicPAG, theta: int, gamma: int, beta: int) -
                 continue
             if nb == gamma:
                 if is_discriminating_path(graph, new_path, beta, theta, gamma):
+                    paths_found += 1
                     yield new_path
             else:
                 stack.append((nb, new_path))
@@ -203,10 +231,12 @@ def discriminating_paths(graph: DynamicPAG, theta: int, gamma: int, beta: int) -
 # --------------------------------------------------------------------
 
 
-def apply_rules(G: DynamicPAG):
+def apply_rules(G: DynamicPAG, verbose: bool = False):
     """
     Apply Zhang's orientation rules R1-R10 to exhaustion.
     """
+    if verbose:
+        print(f"    apply_rules called with verbose={verbose}, graph has {G.n_nodes} nodes", flush=True)
     n = G.n_nodes
 
     def non_adjacent(a, b):
@@ -222,8 +252,15 @@ def apply_rules(G: DynamicPAG):
         return G.is_adjacent(i, j) and G.M[i, j] == TAIL
 
     changed = True
+    outer_iter = 0
+    orientations = 0
+    if verbose:
+        print("    Starting R1-R10 orientation rules...", flush=True)
     while changed:
         changed = False
+        outer_iter += 1
+        if verbose:
+            print(f"    apply_rules iteration {outer_iter} (applying R1-R10)...", flush=True)
 
         # ----------------- R1 -----------------
         for beta in range(n):
@@ -240,6 +277,7 @@ def apply_rules(G: DynamicPAG):
                     if not (G.M[beta, gamma] == ARROW and G.M[gamma, beta] == TAIL):
                         G.orient_with_homology(beta, gamma, ARROW, TAIL)
                         changed = True
+                        orientations += 1
 
         # ----------------- R2 -----------------
         for beta in range(n):
@@ -257,6 +295,7 @@ def apply_rules(G: DynamicPAG):
                     if G.M[alpha, gamma] != ARROW:
                         G.orient_with_homology(alpha, gamma, ARROW, preserved)
                         changed = True
+                        orientations += 1
 
         # ----------------- R3 -----------------
         for beta in range(n):
@@ -283,6 +322,7 @@ def apply_rules(G: DynamicPAG):
                         if not (current_mark_beta == ARROW and G.M[beta, theta] == TAIL):
                             G.orient_with_homology(theta, beta, ARROW, TAIL)
                             changed = True
+                            orientations += 1
 
         # ----------------- R4 -----------------
         for beta in range(n):
@@ -304,6 +344,7 @@ def apply_rules(G: DynamicPAG):
                             if not (G.M[beta, gamma] == ARROW and G.M[gamma, beta] == TAIL):
                                 G.orient_with_homology(beta, gamma, ARROW, TAIL)
                                 changed = True
+                                orientations += 1
                         else:
                             b_idx = path.index(beta)
                             if b_idx == 0:
@@ -312,9 +353,11 @@ def apply_rules(G: DynamicPAG):
                             if not (G.M[alpha, beta] == ARROW and G.M[beta, alpha] == ARROW):
                                 G.orient_with_homology(alpha, beta, ARROW, ARROW)
                                 changed = True
+                                orientations += 1
                             if not (G.M[beta, gamma] == ARROW and G.M[gamma, beta] == ARROW):
                                 G.orient_with_homology(beta, gamma, ARROW, ARROW)
                                 changed = True
+                                orientations += 1
                         break
                     if found:
                         continue
@@ -340,9 +383,11 @@ def apply_rules(G: DynamicPAG):
                         if not (tail_at(u, v) and tail_at(v, u)):
                             G.orient_with_homology(u, v, TAIL, TAIL)
                             changed = True
+                            orientations += 1
                     if not (tail_at(a, b) and tail_at(b, a)):
                         G.orient_with_homology(a, b, TAIL, TAIL)
                         changed = True
+                        orientations += 1
                     break
 
         # ----------------- R6 -----------------
@@ -359,6 +404,7 @@ def apply_rules(G: DynamicPAG):
                         continue
                     G.orient_with_homology(b, c, G.M[b, c], TAIL)
                     changed = True
+                    orientations += 1
 
         # ----------------- R7 -----------------
         for a in range(n):
@@ -381,6 +427,7 @@ def apply_rules(G: DynamicPAG):
                     if G.M[c, b] != TAIL:
                         G.orient_with_homology(b, c, G.M[b, c], TAIL)
                         changed = True
+                        orientations += 1
                         break
 
         # ----------------- R8 -----------------
@@ -403,6 +450,7 @@ def apply_rules(G: DynamicPAG):
                     if not (G.M[a, c] == ARROW and G.M[c, a] == TAIL):
                         G.orient_with_homology(a, c, ARROW, TAIL)
                         changed = True
+                        orientations += 1
 
         # ----------------- R9 -----------------
         for a in range(n):
@@ -420,6 +468,7 @@ def apply_rules(G: DynamicPAG):
                     if not (G.M[a, c] == ARROW and G.M[c, a] == TAIL):
                         G.orient_with_homology(a, c, ARROW, TAIL)
                         changed = True
+                        orientations += 1
                     break
 
         # ----------------- R10 -----------------
@@ -453,8 +502,16 @@ def apply_rules(G: DynamicPAG):
                         if not (G.M[a, c] == ARROW and G.M[c, a] == TAIL):
                             G.orient_with_homology(a, c, ARROW, TAIL)
                             changed = True
+                            orientations += 1
                         break
                     if changed:
                         break
                 if changed:
                     break
+
+        # Heartbeat: print iteration and orientation count if verbose
+        if verbose:
+            print(
+                f"    apply_rules iteration {outer_iter} complete: {orientations} orientations made (changed={changed})",
+                flush=True,
+            )

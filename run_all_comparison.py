@@ -129,6 +129,11 @@ def parse_args() -> argparse.Namespace:
         default=60,
         help="Seconds between live progress heartbeats for long-running algorithms.",
     )
+    parser.add_argument(
+        "--verbose-algos",
+        action="store_true",
+        help="Enable verbose output from algorithms (if supported).",
+    )
     return parser.parse_args()
 
 
@@ -156,6 +161,11 @@ def resolve_paths(args: argparse.Namespace) -> Tuple[str, str, str, str]:
 
 
 def load_and_clean_data(data_path: str) -> pd.DataFrame:
+    if not os.path.exists(data_path):
+        raise FileNotFoundError(
+            f"Data file not found: {data_path}\n"
+            f"Use --list to see available datasets, or provide a valid path with --data."
+        )
     df = pd.read_csv(data_path)
     if "date" in df.columns:
         df = df.drop(columns=["date"])
@@ -258,17 +268,19 @@ def build_algorithms(
     include_tetrad: bool,
     only_names: List[str],
     quiet: bool,
+    verbose: bool = False,
 ) -> List:
     """
     Build algorithm wrappers, optionally filtering by requested names.
     """
     registry = [
-        ("svar-fci", lambda: SVARFCIWrapper(alpha=alpha, max_lag=max_lag, use_selection=False), False),
-        ("svar-gfci", lambda: SVARGFCIWrapper(alpha=alpha, max_lag=max_lag), False),
+        ("svar-fci", lambda: SVARFCIWrapper(alpha=alpha, max_lag=max_lag, use_selection=False, verbose=verbose), False),
+        ("svar-gfci", lambda: SVARGFCIWrapper(alpha=alpha, max_lag=max_lag, verbose=verbose), False),
         ("lpcmci-parcorr", lambda: LPCMCIWrapper(alpha=alpha, max_lag=max_lag, cond_ind_test="parcorr"), False),
         ("lpcmci-cmiknn", lambda: LPCMCIWrapper(alpha=alpha, max_lag=max_lag, cond_ind_test="cmiknn"), False),
         ("lpcmci-gpdc", lambda: LPCMCIWrapper(alpha=alpha, max_lag=max_lag, cond_ind_test="gpdc"), False),
         ("lpcmci-gdpc", lambda: LPCMCIWrapper(alpha=alpha, max_lag=max_lag, cond_ind_test="gpdc"), False),  # Alias for gpdc
+        ("lpcmci-ridge", lambda: LPCMCIWrapper(alpha=alpha, max_lag=max_lag, cond_ind_test="ridge"), False),
         ("pc", lambda: CausalLearnPCWrapper(alpha=alpha), False),
         ("fci", lambda: CausalLearnFCIWrapper(alpha=alpha), False),
         ("ges", lambda: CausalLearnGESWrapper(), False),
@@ -505,6 +517,7 @@ def main():
         include_tetrad=args.include_tetrad,
         only_names=requested_names,
         quiet=args.quiet,
+        verbose=args.verbose_algos,
     )
     existing = load_checkpoints(checkpoint_dir, data_vars) if args.resume else {}
     results: List[AlgorithmResult] = []

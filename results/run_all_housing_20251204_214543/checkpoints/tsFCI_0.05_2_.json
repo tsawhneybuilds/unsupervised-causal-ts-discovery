@@ -1,0 +1,18 @@
+{
+  "algorithm_name": "tsFCI(\u03b1=0.05, \u03c4=2)",
+  "safe_name": "tsFCI_0.05_2_",
+  "elapsed_time": 0.7194898128509521,
+  "metrics": {
+    "adj_precision": 0.5,
+    "adj_recall": 0.8,
+    "f1_adj": 0.6153846153846154,
+    "arrow_precision": 0.26666666666666666,
+    "arrow_recall": 0.8,
+    "f1_arrow": 0.4,
+    "shd": -99.0
+  },
+  "error": null,
+  "graph_path": "results/run_all_housing_20251204_214543/graphs/graph_tsFCI_0.05_2_.txt",
+  "edges": 8,
+  "created_at": "2025-12-05T02:56:36.527508Z"
+}

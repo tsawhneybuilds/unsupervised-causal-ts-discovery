@@ -1,0 +1,9 @@
+Algorithm,Avg_Similarity,Avg_F1_Arrow,Avg_F1_Adj,Avg_Arrow_Precision,Avg_Arrow_Recall,Avg_Adj_Precision,Avg_Adj_Recall,Rank
+GES(local_score_BIC),,,,,,,,1
+"LPCMCI(α=0.05, τ=2)",,,,,,,,2
+"LPCMCI-CMI-KNN(α=0.05, τ=2)",,,,,,,,3
+"LPCMCI-GPDC(α=0.05, τ=2)",,,,,,,,4
+"LPCMCI-PARCORR(α=0.05, τ=2)",,,,,,,,5
+"SVAR-FCI(α=0.05, p=2)",,,,,,,,6
+"SVAR-GFCI(α=0.05, p=2)",,,,,,,,7
+"tsFCI(α=0.05, τ=2)",,,,,,,,8

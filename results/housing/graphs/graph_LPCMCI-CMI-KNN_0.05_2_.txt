@@ -1,0 +1,7 @@
+Graph Nodes:
+cons_logdiff;output_logdiff;mortgage_rate;credit_logdiff;houseprices_logdiff;policyrate
+
+Graph Edges:
+1. output_logdiff o-> cons_logdiff
+2. cons_logdiff --> credit_logdiff
+3. houseprices_logdiff --> credit_logdiff

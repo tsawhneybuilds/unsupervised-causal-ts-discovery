@@ -1,0 +1,11 @@
+Algorithm,Checkpoint,SID,SID_Normalized,Max_Pairs,Edges_Used,Edges_Dropped,Missing_Nodes,Extra_Nodes,Is_Est_DAG,Is_True_DAG,Error
+GES(local_score_BIC),GES_local_score_BIC_.json,98.0,0.8909090909090909,110.0,88.0,0.0,,,False,True,
+"LPCMCI-CMI-KNN(α=0.05, τ=2)",LPCMCI-CMI-KNN_0.05_2_.json,105.0,0.9545454545454546,110.0,7.0,0.0,,,True,True,
+"LPCMCI-GPDC(α=0.05, τ=2)",LPCMCI-GPDC_0.05_2_.json,97.0,0.8818181818181818,110.0,6.0,3.0,,,True,True,
+"LPCMCI-PARCORR(α=0.05, τ=2)",LPCMCI-PARCORR_0.05_2_.json,98.0,0.8909090909090909,110.0,14.0,8.0,,,False,True,
+"LPCMCI(α=0.05, τ=2)",LPCMCI_0.05_2_.json,98.0,0.8909090909090909,110.0,14.0,8.0,,,False,True,
+"SVAR-FCI(α=0.05, p=2)",SVAR-FCI_0.05_p_2_.json,89.0,0.8090909090909091,110.0,14.0,2.0,,,False,True,
+"SVAR-GFCI(α=0.05, p=2)",SVAR-GFCI_0.05_p_2_.json,90.0,0.8181818181818182,110.0,18.0,0.0,,,False,True,
+Tetrad-FCI_0.05_,Tetrad-FCI_0.05_.json,,,,,,,,,,Could not find graph file for checkpoint /Users/tanushsawhney/Documents/uml/project/results/monetary_longrun/checkpoints/Tetrad-FCI_0.05_.json
+Tetrad-PC_0.05_,Tetrad-PC_0.05_.json,,,,,,,,,,Could not find graph file for checkpoint /Users/tanushsawhney/Documents/uml/project/results/monetary_longrun/checkpoints/Tetrad-PC_0.05_.json
+"tsFCI(α=0.05, τ=2)",tsFCI_0.05_2_.json,98.0,0.8909090909090909,110.0,8.0,29.0,,,True,True,

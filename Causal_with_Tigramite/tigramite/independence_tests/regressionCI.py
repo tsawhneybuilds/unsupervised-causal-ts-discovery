@@ -8,7 +8,7 @@ import numpy as np
 import warnings
 
 from scipy.stats import chi2, normaltest
-from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge
 from sklearn import metrics
 from sklearn.dummy import DummyClassifier
 
@@ -61,13 +61,26 @@ class RegressionCI(CondIndTest):
         return self._measure
     
     def __init__(self,
+                 regression_type='linear',
+                 ridge_alpha=1.0,
                  **kwargs):
-        
+        """
+        Parameters
+        ----------
+        regression_type : str, optional (default: 'linear')
+            Type of regression to use. Options: 'linear' or 'ridge'
+        ridge_alpha : float, optional (default: 1.0)
+            Regularization strength for Ridge regression. Only used when regression_type='ridge'
+        **kwargs :
+            Arguments passed on to parent class CondIndTest.
+        """
         # Setup the member variables
         self._measure = 'regression_ci'
         self.two_sided = False
         self.residual_based = False
         self.recycle_residuals = False
+        self.regression_type = regression_type
+        self.ridge_alpha = ridge_alpha
 
         CondIndTest.__init__(self, **kwargs)
 
@@ -176,8 +189,11 @@ class RegressionCI(CondIndTest):
             y = np.ravel(y)
             if y.std() == 0.: 
                 warnings.warn("Constant array detected, CI test ill-defined!")
-            # do linear regression
-            model = LinearRegression()
+            # do linear or ridge regression based on regression_type
+            if self.regression_type == 'ridge':
+                model = Ridge(alpha=self.ridge_alpha)
+            else:
+                model = LinearRegression()
             model.fit(X, y)
             # predictions based on fitted model
             preds = model.predict(X)

@@ -196,7 +196,7 @@ class SVAR_FCI:
         self._orient_v_structures(G)
 
         # 13: R1–R10
-        apply_rules(G)
+        apply_rules(G, verbose=self.verbose)
 
         self.graph_ = G
         return self

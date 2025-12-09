@@ -493,7 +493,10 @@ def plot_graph_custom_layout(
                ha='center', va='center',
                fontsize=11, weight='bold',
                color='#1A1A1A',
-               zorder=11)
+                zorder=11)
+    
+    # First pass: collect all label positions for collision avoidance
+    label_data = []  # List of (x, y, text, color) tuples
     
     # Draw edges with arrows that connect at circle edges
     for edge in graph.edges:
@@ -594,32 +597,96 @@ def plot_graph_custom_layout(
             )
             ax.add_patch(arrow)
             
-            # Calculate label position using tigramite's method:
-            # Get the actual rendered path using to_polygons, then find midpoint
+            # Calculate label position: place at midpoint with perpendicular offset to avoid overlaps
             try:
                 # Get the path as polygons (this gives the actual rendered curve)
                 path_polygons = arrow.get_path().to_polygons(transform=None)
                 if path_polygons and len(path_polygons) > 0:
                     verts = path_polygons[0]  # Get first polygon
                     if len(verts) > 2:
-                        # Find midpoint by index (tigramite uses int(len(vertices)/2))
+                        # Place label at midpoint (50%) of the path
                         mid_idx = int(len(verts) / 2)
-                        label_x = verts[mid_idx][0]
-                        label_y = verts[mid_idx][1]
+                        base_x = verts[mid_idx][0]
+                        base_y = verts[mid_idx][1]
+                        
+                        # Calculate perpendicular offset to move label away from arrow
+                        # Get direction vector at midpoint
+                        if mid_idx > 0 and mid_idx < len(verts) - 1:
+                            # Use nearby points to get direction
+                            dx = verts[mid_idx + 1][0] - verts[mid_idx - 1][0]
+                            dy = verts[mid_idx + 1][1] - verts[mid_idx - 1][1]
+                        else:
+                            # Fallback to overall direction
+                            dx = end_x - start_x
+                            dy = end_y - start_y
+                        
+                        # Normalize direction
+                        length = math.sqrt(dx*dx + dy*dy)
+                        if length > 0:
+                            dx_norm = dx / length
+                            dy_norm = dy / length
+                        else:
+                            dx_norm = 0
+                            dy_norm = 1
+                        
+                        # Perpendicular vector (rotate 90 degrees)
+                        perp_x = -dy_norm
+                        perp_y = dx_norm
+                        
+                        # Offset distance: small amount to move label away from arrow line
+                        offset_distance = 0.15  # Adjust this to control label distance from arrow
+                        label_x = base_x + perp_x * offset_distance
+                        label_y = base_y + perp_y * offset_distance
                     else:
-                        # Fallback to geometric midpoint
-                        label_x = (start_x + end_x) / 2
-                        label_y = (start_y + end_y) / 2
+                        # Fallback: midpoint with perpendicular offset
+                        mid_x = (start_x + end_x) / 2
+                        mid_y = (start_y + end_y) / 2
+                        dx = end_x - start_x
+                        dy = end_y - start_y
+                        length = math.sqrt(dx*dx + dy*dy)
+                        if length > 0:
+                            perp_x = -dy / length
+                            perp_y = dx / length
+                            offset_distance = 0.15
+                            label_x = mid_x + perp_x * offset_distance
+                            label_y = mid_y + perp_y * offset_distance
+                        else:
+                            label_x = mid_x
+                            label_y = mid_y
                 else:
-                    # Fallback to geometric midpoint
-                    label_x = (start_x + end_x) / 2
-                    label_y = (start_y + end_y) / 2
+                    # Fallback: midpoint with perpendicular offset
+                    mid_x = (start_x + end_x) / 2
+                    mid_y = (start_y + end_y) / 2
+                    dx = end_x - start_x
+                    dy = end_y - start_y
+                    length = math.sqrt(dx*dx + dy*dy)
+                    if length > 0:
+                        perp_x = -dy / length
+                        perp_y = dx / length
+                        offset_distance = 0.15
+                        label_x = mid_x + perp_x * offset_distance
+                        label_y = mid_y + perp_y * offset_distance
+                    else:
+                        label_x = mid_x
+                        label_y = mid_y
             except Exception:
-                # Use geometric midpoint if path extraction fails
-                label_x = (start_x + end_x) / 2
-                label_y = (start_y + end_y) / 2
+                # Fallback: midpoint with perpendicular offset
+                mid_x = (start_x + end_x) / 2
+                mid_y = (start_y + end_y) / 2
+                dx = end_x - start_x
+                dy = end_y - start_y
+                length = math.sqrt(dx*dx + dy*dy)
+                if length > 0:
+                    perp_x = -dy / length
+                    perp_y = dx / length
+                    offset_distance = 0.15
+                    label_x = mid_x + perp_x * offset_distance
+                    label_y = mid_y + perp_y * offset_distance
+                else:
+                    label_x = mid_x
+                    label_y = mid_y
             
-            # Add lag labels if available
+            # Store label data for collision avoidance (don't draw yet)
             if filtered_lags and len(filtered_lags) > 0:
                 # Format: single lag as "1", multiple lags as "(1,2)"
                 sorted_lags = sorted(filtered_lags)
@@ -627,12 +694,7 @@ def plot_graph_custom_layout(
                     lag_str = str(sorted_lags[0])
                 else:
                     lag_str = '(' + ','.join(map(str, sorted_lags)) + ')'
-                ax.text(label_x, label_y, lag_str,
-                       fontsize=8, ha='center', va='center',
-                       bbox=dict(boxstyle='round,pad=0.4', facecolor='white', 
-                               edgecolor=arrow_color, linewidth=1.5, alpha=0.95),
-                       zorder=12,
-                       weight='bold')
+                label_data.append((label_x, label_y, lag_str, arrow_color))
         
         elif edge.edge_type == 'bidirected':
             # Draw bidirectional arrow with filled heads
@@ -650,26 +712,78 @@ def plot_graph_custom_layout(
             )
             ax.add_patch(arrow1)
             
-            # Calculate label position using tigramite's method
+            # Calculate label position: place at midpoint with perpendicular offset to avoid overlaps
             try:
                 path_polygons = arrow1.get_path().to_polygons(transform=None)
                 if path_polygons and len(path_polygons) > 0:
                     verts = path_polygons[0]
                     if len(verts) > 2:
                         mid_idx = int(len(verts) / 2)
-                        label_x = verts[mid_idx][0]
-                        label_y = verts[mid_idx][1]
+                        base_x = verts[mid_idx][0]
+                        base_y = verts[mid_idx][1]
+                        if mid_idx > 0 and mid_idx < len(verts) - 1:
+                            dx = verts[mid_idx + 1][0] - verts[mid_idx - 1][0]
+                            dy = verts[mid_idx + 1][1] - verts[mid_idx - 1][1]
+                        else:
+                            dx = end_x - start_x
+                            dy = end_y - start_y
+                        length = math.sqrt(dx*dx + dy*dy)
+                        if length > 0:
+                            perp_x = -dy / length
+                            perp_y = dx / length
+                            offset_distance = 0.15
+                            label_x = base_x + perp_x * offset_distance
+                            label_y = base_y + perp_y * offset_distance
+                        else:
+                            label_x = base_x
+                            label_y = base_y
                     else:
-                        label_x = (start_x + end_x) / 2
-                        label_y = (start_y + end_y) / 2
+                        mid_x = (start_x + end_x) / 2
+                        mid_y = (start_y + end_y) / 2
+                        dx = end_x - start_x
+                        dy = end_y - start_y
+                        length = math.sqrt(dx*dx + dy*dy)
+                        if length > 0:
+                            perp_x = -dy / length
+                            perp_y = dx / length
+                            offset_distance = 0.15
+                            label_x = mid_x + perp_x * offset_distance
+                            label_y = mid_y + perp_y * offset_distance
+                        else:
+                            label_x = mid_x
+                            label_y = mid_y
                 else:
-                    label_x = (start_x + end_x) / 2
-                    label_y = (start_y + end_y) / 2
+                    mid_x = (start_x + end_x) / 2
+                    mid_y = (start_y + end_y) / 2
+                    dx = end_x - start_x
+                    dy = end_y - start_y
+                    length = math.sqrt(dx*dx + dy*dy)
+                    if length > 0:
+                        perp_x = -dy / length
+                        perp_y = dx / length
+                        offset_distance = 0.15
+                        label_x = mid_x + perp_x * offset_distance
+                        label_y = mid_y + perp_y * offset_distance
+                    else:
+                        label_x = mid_x
+                        label_y = mid_y
             except Exception:
-                label_x = (start_x + end_x) / 2
-                label_y = (start_y + end_y) / 2
+                mid_x = (start_x + end_x) / 2
+                mid_y = (start_y + end_y) / 2
+                dx = end_x - start_x
+                dy = end_y - start_y
+                length = math.sqrt(dx*dx + dy*dy)
+                if length > 0:
+                    perp_x = -dy / length
+                    perp_y = dx / length
+                    offset_distance = 0.15
+                    label_x = mid_x + perp_x * offset_distance
+                    label_y = mid_y + perp_y * offset_distance
+                else:
+                    label_x = mid_x
+                    label_y = mid_y
             
-            # Add lag labels if available
+            # Store label data for collision avoidance (don't draw yet)
             if filtered_lags and len(filtered_lags) > 0:
                 # Format: single lag as "1", multiple lags as "(1,2)"
                 sorted_lags = sorted(filtered_lags)
@@ -677,12 +791,7 @@ def plot_graph_custom_layout(
                     lag_str = str(sorted_lags[0])
                 else:
                     lag_str = '(' + ','.join(map(str, sorted_lags)) + ')'
-                ax.text(label_x, label_y, lag_str,
-                       fontsize=8, ha='center', va='center',
-                       bbox=dict(boxstyle='round,pad=0.4', facecolor='white', 
-                               edgecolor=arrow_color, linewidth=1.5, alpha=0.95),
-                       zorder=12,
-                       weight='bold')
+                label_data.append((label_x, label_y, lag_str, arrow_color))
         
         elif edge.edge_type == 'pag_circle_arrow':
             # Draw arrow with circle at source (tail end)
@@ -700,33 +809,42 @@ def plot_graph_custom_layout(
             )
             ax.add_patch(arrow)
             # Add circle at source - positioned at the edge point
-            circle_marker = Circle((start_x, start_y), node_radius * 0.5,
+            # Make PAG circle smaller than arrow head (about 30% of node radius)
+            pag_circle_radius = node_radius * 0.2
+            circle_marker = Circle((start_x, start_y), pag_circle_radius,
                                   facecolor='white',
                                   edgecolor=arrow_color,
-                                  linewidth=4,
-                                  zorder=5)  # Higher zorder to be on top
+                                  linewidth=3,  # Slightly thinner line for smaller circle
+                                  zorder=11)  # Above node circles (zorder=10) but below labels (zorder=12)
             ax.add_patch(circle_marker)
             
             # Calculate label position using tigramite's method
+            # Use 65% along the path to avoid covering node text and other labels
             try:
                 path_polygons = arrow.get_path().to_polygons(transform=None)
                 if path_polygons and len(path_polygons) > 0:
                     verts = path_polygons[0]
                     if len(verts) > 2:
-                        mid_idx = int(len(verts) / 2)
-                        label_x = verts[mid_idx][0]
-                        label_y = verts[mid_idx][1]
+                        # Place label at 65% along the path (closer to target, away from source)
+                        label_idx = int(len(verts) * 0.65)
+                        # Clamp to valid range
+                        label_idx = max(1, min(label_idx, len(verts) - 2))
+                        label_x = verts[label_idx][0]
+                        label_y = verts[label_idx][1]
                     else:
-                        label_x = (start_x + end_x) / 2
-                        label_y = (start_y + end_y) / 2
+                        # Fallback: interpolate between start and end at 65%
+                        label_x = start_x + 0.65 * (end_x - start_x)
+                        label_y = start_y + 0.65 * (end_y - start_y)
                 else:
-                    label_x = (start_x + end_x) / 2
-                    label_y = (start_y + end_y) / 2
+                    # Fallback: interpolate between start and end at 65%
+                    label_x = start_x + 0.65 * (end_x - start_x)
+                    label_y = start_y + 0.65 * (end_y - start_y)
             except Exception:
-                label_x = (start_x + end_x) / 2
-                label_y = (start_y + end_y) / 2
+                # Use 65% interpolation if path extraction fails
+                label_x = start_x + 0.65 * (end_x - start_x)
+                label_y = start_y + 0.65 * (end_y - start_y)
             
-            # Add lag labels if available
+            # Store label data for collision avoidance (don't draw yet)
             if filtered_lags and len(filtered_lags) > 0:
                 # Format: single lag as "1", multiple lags as "(1,2)"
                 sorted_lags = sorted(filtered_lags)
@@ -734,12 +852,7 @@ def plot_graph_custom_layout(
                     lag_str = str(sorted_lags[0])
                 else:
                     lag_str = '(' + ','.join(map(str, sorted_lags)) + ')'
-                ax.text(label_x, label_y, lag_str,
-                       fontsize=8, ha='center', va='center',
-                       bbox=dict(boxstyle='round,pad=0.4', facecolor='white', 
-                               edgecolor=arrow_color, linewidth=1.5, alpha=0.95),
-                       zorder=12,
-                       weight='bold')
+                label_data.append((label_x, label_y, lag_str, arrow_color))
         
         elif edge.edge_type == 'pag_circle_circle':
             # Draw line with circles at both ends
@@ -755,34 +868,43 @@ def plot_graph_custom_layout(
             )
             ax.add_patch(arrow)
             # Add circles at both ends - positioned at edge points
+            # Make PAG circles smaller than arrow head (about 30% of node radius)
+            pag_circle_radius = node_radius * 0.3
             for circle_x, circle_y in [(start_x, start_y), (end_x, end_y)]:
-                circle_marker = Circle((circle_x, circle_y), node_radius * 0.5,
+                circle_marker = Circle((circle_x, circle_y), pag_circle_radius,
                                       facecolor='white',
                                       edgecolor=arrow_color,
-                                      linewidth=4,
-                                      zorder=5)  # Higher zorder to be on top
+                                      linewidth=3,  # Slightly thinner line for smaller circle
+                                      zorder=11)  # Above node circles (zorder=10) but below labels (zorder=12)
                 ax.add_patch(circle_marker)
             
             # Calculate label position using tigramite's method
+            # Use 65% along the path to avoid covering node text and other labels
             try:
                 path_polygons = arrow.get_path().to_polygons(transform=None)
                 if path_polygons and len(path_polygons) > 0:
                     verts = path_polygons[0]
                     if len(verts) > 2:
-                        mid_idx = int(len(verts) / 2)
-                        label_x = verts[mid_idx][0]
-                        label_y = verts[mid_idx][1]
+                        # Place label at 65% along the path (closer to target, away from source)
+                        label_idx = int(len(verts) * 0.65)
+                        # Clamp to valid range
+                        label_idx = max(1, min(label_idx, len(verts) - 2))
+                        label_x = verts[label_idx][0]
+                        label_y = verts[label_idx][1]
                     else:
-                        label_x = (start_x + end_x) / 2
-                        label_y = (start_y + end_y) / 2
+                        # Fallback: interpolate between start and end at 65%
+                        label_x = start_x + 0.65 * (end_x - start_x)
+                        label_y = start_y + 0.65 * (end_y - start_y)
                 else:
-                    label_x = (start_x + end_x) / 2
-                    label_y = (start_y + end_y) / 2
+                    # Fallback: interpolate between start and end at 65%
+                    label_x = start_x + 0.65 * (end_x - start_x)
+                    label_y = start_y + 0.65 * (end_y - start_y)
             except Exception:
-                label_x = (start_x + end_x) / 2
-                label_y = (start_y + end_y) / 2
+                # Use 65% interpolation if path extraction fails
+                label_x = start_x + 0.65 * (end_x - start_x)
+                label_y = start_y + 0.65 * (end_y - start_y)
             
-            # Add lag labels if available
+            # Store label data for collision avoidance (don't draw yet)
             if filtered_lags and len(filtered_lags) > 0:
                 # Format: single lag as "1", multiple lags as "(1,2)"
                 sorted_lags = sorted(filtered_lags)
@@ -790,12 +912,7 @@ def plot_graph_custom_layout(
                     lag_str = str(sorted_lags[0])
                 else:
                     lag_str = '(' + ','.join(map(str, sorted_lags)) + ')'
-                ax.text(label_x, label_y, lag_str,
-                       fontsize=8, ha='center', va='center',
-                       bbox=dict(boxstyle='round,pad=0.4', facecolor='white', 
-                               edgecolor=arrow_color, linewidth=1.5, alpha=0.95),
-                       zorder=12,
-                       weight='bold')
+                label_data.append((label_x, label_y, lag_str, arrow_color))
         
         elif edge.edge_type == 'undirected':
             # Draw simple line - make it very prominent
@@ -811,32 +928,96 @@ def plot_graph_custom_layout(
             )
             ax.add_patch(arrow)
             
-            # Calculate label position using tigramite's method:
-            # Get the actual rendered path using to_polygons, then find midpoint
+            # Calculate label position: place at midpoint with perpendicular offset to avoid overlaps
             try:
                 # Get the path as polygons (this gives the actual rendered curve)
                 path_polygons = arrow.get_path().to_polygons(transform=None)
                 if path_polygons and len(path_polygons) > 0:
                     verts = path_polygons[0]  # Get first polygon
                     if len(verts) > 2:
-                        # Find midpoint by index (tigramite uses int(len(vertices)/2))
+                        # Place label at midpoint (50%) of the path
                         mid_idx = int(len(verts) / 2)
-                        label_x = verts[mid_idx][0]
-                        label_y = verts[mid_idx][1]
+                        base_x = verts[mid_idx][0]
+                        base_y = verts[mid_idx][1]
+                        
+                        # Calculate perpendicular offset to move label away from arrow
+                        # Get direction vector at midpoint
+                        if mid_idx > 0 and mid_idx < len(verts) - 1:
+                            # Use nearby points to get direction
+                            dx = verts[mid_idx + 1][0] - verts[mid_idx - 1][0]
+                            dy = verts[mid_idx + 1][1] - verts[mid_idx - 1][1]
+                        else:
+                            # Fallback to overall direction
+                            dx = end_x - start_x
+                            dy = end_y - start_y
+                        
+                        # Normalize direction
+                        length = math.sqrt(dx*dx + dy*dy)
+                        if length > 0:
+                            dx_norm = dx / length
+                            dy_norm = dy / length
+                        else:
+                            dx_norm = 0
+                            dy_norm = 1
+                        
+                        # Perpendicular vector (rotate 90 degrees)
+                        perp_x = -dy_norm
+                        perp_y = dx_norm
+                        
+                        # Offset distance: small amount to move label away from arrow line
+                        offset_distance = 0.15  # Adjust this to control label distance from arrow
+                        label_x = base_x + perp_x * offset_distance
+                        label_y = base_y + perp_y * offset_distance
                     else:
-                        # Fallback to geometric midpoint
-                        label_x = (start_x + end_x) / 2
-                        label_y = (start_y + end_y) / 2
+                        # Fallback: midpoint with perpendicular offset
+                        mid_x = (start_x + end_x) / 2
+                        mid_y = (start_y + end_y) / 2
+                        dx = end_x - start_x
+                        dy = end_y - start_y
+                        length = math.sqrt(dx*dx + dy*dy)
+                        if length > 0:
+                            perp_x = -dy / length
+                            perp_y = dx / length
+                            offset_distance = 0.15
+                            label_x = mid_x + perp_x * offset_distance
+                            label_y = mid_y + perp_y * offset_distance
+                        else:
+                            label_x = mid_x
+                            label_y = mid_y
                 else:
-                    # Fallback to geometric midpoint
-                    label_x = (start_x + end_x) / 2
-                    label_y = (start_y + end_y) / 2
+                    # Fallback: midpoint with perpendicular offset
+                    mid_x = (start_x + end_x) / 2
+                    mid_y = (start_y + end_y) / 2
+                    dx = end_x - start_x
+                    dy = end_y - start_y
+                    length = math.sqrt(dx*dx + dy*dy)
+                    if length > 0:
+                        perp_x = -dy / length
+                        perp_y = dx / length
+                        offset_distance = 0.15
+                        label_x = mid_x + perp_x * offset_distance
+                        label_y = mid_y + perp_y * offset_distance
+                    else:
+                        label_x = mid_x
+                        label_y = mid_y
             except Exception:
-                # Use geometric midpoint if path extraction fails
-                label_x = (start_x + end_x) / 2
-                label_y = (start_y + end_y) / 2
+                # Fallback: midpoint with perpendicular offset
+                mid_x = (start_x + end_x) / 2
+                mid_y = (start_y + end_y) / 2
+                dx = end_x - start_x
+                dy = end_y - start_y
+                length = math.sqrt(dx*dx + dy*dy)
+                if length > 0:
+                    perp_x = -dy / length
+                    perp_y = dx / length
+                    offset_distance = 0.15
+                    label_x = mid_x + perp_x * offset_distance
+                    label_y = mid_y + perp_y * offset_distance
+                else:
+                    label_x = mid_x
+                    label_y = mid_y
             
-            # Add lag labels if available
+            # Store label data for collision avoidance (don't draw yet)
             if filtered_lags and len(filtered_lags) > 0:
                 # Format: single lag as "1", multiple lags as "(1,2)"
                 sorted_lags = sorted(filtered_lags)
@@ -844,12 +1025,58 @@ def plot_graph_custom_layout(
                     lag_str = str(sorted_lags[0])
                 else:
                     lag_str = '(' + ','.join(map(str, sorted_lags)) + ')'
-                ax.text(label_x, label_y, lag_str,
-                       fontsize=8, ha='center', va='center',
-                       bbox=dict(boxstyle='round,pad=0.4', facecolor='white', 
-                               edgecolor=arrow_color, linewidth=1.5, alpha=0.95),
-                       zorder=12,
-                       weight='bold')
+                label_data.append((label_x, label_y, lag_str, arrow_color))
+    
+    # Apply very subtle collision avoidance to spread out overlapping labels
+    if len(label_data) > 1:
+        # Estimate label box size (approximate based on text length and padding)
+        label_box_radius = 0.2  # Approximate radius of label box
+        
+        # Simple repulsion: push overlapping labels apart very slightly
+        max_iterations = 5  # Fewer iterations for very subtle adjustment
+        for iteration in range(max_iterations):
+            moved = False
+            for i in range(len(label_data)):
+                x1, y1, text1, color1 = label_data[i]
+                fx, fy = 0.0, 0.0  # Force vector
+                
+                for j in range(len(label_data)):
+                    if i == j:
+                        continue
+                    x2, y2, text2, color2 = label_data[j]
+                    
+                    # Calculate distance between labels
+                    dx = x2 - x1
+                    dy = y2 - y1
+                    dist = math.sqrt(dx*dx + dy*dy)
+                    
+                    # If labels are very close (overlapping), apply very gentle repulsion force
+                    min_dist = label_box_radius * 1.8  # Only act when labels are actually overlapping
+                    if dist < min_dist and dist > 0.001:
+                        # Very gentle repulsion force
+                        force = (min_dist - dist) / min_dist * 0.02  # Much weaker force
+                        fx -= (dx / dist) * force
+                        fy -= (dy / dist) * force
+                        moved = True
+                
+                # Apply force (with damping)
+                if abs(fx) > 0.0005 or abs(fy) > 0.0005:
+                    new_x = x1 + fx
+                    new_y = y1 + fy
+                    label_data[i] = (new_x, new_y, text1, color1)
+            
+            # Early termination if no movement
+            if not moved:
+                break
+    
+    # Now draw all labels at their (possibly adjusted) positions
+    for label_x, label_y, lag_str, arrow_color in label_data:
+        ax.text(label_x, label_y, lag_str,
+               fontsize=8, ha='center', va='center',
+               bbox=dict(boxstyle='round,pad=0.4', facecolor='white', 
+                       edgecolor=arrow_color, linewidth=1.5, alpha=0.95),
+               zorder=12,
+               weight='bold')
     
     # Set axis limits with padding
     all_x = [pos[0] for pos in node_positions.values()]

@@ -87,7 +87,8 @@ class SVARFCIWrapper(AlgorithmWrapper):
         max_cond_size: Optional[int] = None,
         use_selection: bool = False,
         alpha_grid: Optional[np.ndarray] = None,
-        p_grid: Optional[List[int]] = None
+        p_grid: Optional[List[int]] = None,
+        verbose: bool = False,
     ):
         self.alpha = alpha
         self.max_lag = max_lag
@@ -98,6 +99,7 @@ class SVARFCIWrapper(AlgorithmWrapper):
         # Store selected params after fit (when use_selection=True)
         self.selected_alpha = None
         self.selected_p = None
+        self.verbose = verbose
     
     @property
     def name(self) -> str:
@@ -129,7 +131,7 @@ class SVARFCIWrapper(AlgorithmWrapper):
                 alpha=self.alpha,
                 max_lag=self.max_lag,
                 max_cond_size=self.max_cond_size,
-                verbose=False
+                verbose=self.verbose
             )
             model.fit(data, var_names)
         
@@ -285,11 +287,13 @@ class SVARGFCIWrapper(AlgorithmWrapper):
         self, 
         alpha: float = 0.05, 
         max_lag: int = 2, 
-        max_cond_size: Optional[int] = None
+        max_cond_size: Optional[int] = None,
+        verbose: bool = False
     ):
         self.alpha = alpha
         self.max_lag = max_lag
         self.max_cond_size = max_cond_size
+        self.verbose = verbose
     
     @property
     def name(self) -> str:
@@ -305,7 +309,7 @@ class SVARGFCIWrapper(AlgorithmWrapper):
             alpha=self.alpha,
             max_lag=self.max_lag,
             max_cond_size=self.max_cond_size,
-            verbose=False
+            verbose=self.verbose
         )
         model.fit(data, var_names)
         
@@ -468,7 +472,7 @@ class LPCMCIWrapper(AlgorithmWrapper):
         Args:
             alpha: Significance level for CI tests (pc_alpha in LPCMCI)
             max_lag: Maximum time lag to consider (tau_max in LPCMCI)
-            cond_ind_test: Type of CI test - 'parcorr', 'regression', or 'cmiknn'
+            cond_ind_test: Type of CI test - 'parcorr', 'regression', 'ridge', 'cmiknn', or 'gpdc'
         """
         self.alpha = alpha
         self.max_lag = max_lag  # This is tau_max in LPCMCI
@@ -476,7 +480,12 @@ class LPCMCIWrapper(AlgorithmWrapper):
     
     @property
     def name(self) -> str:
-        test_name = self.cond_ind_test.upper() if self.cond_ind_test != 'cmiknn' else 'CMI-KNN'
+        if self.cond_ind_test == 'cmiknn':
+            test_name = 'CMI-KNN'
+        elif self.cond_ind_test == 'ridge':
+            test_name = 'RIDGE'
+        else:
+            test_name = self.cond_ind_test.upper()
         return f"LPCMCI-{test_name}(α={self.alpha}, τ={self.max_lag})"
     
     def fit(self, data: np.ndarray, var_names: List[str]) -> StandardGraph:
@@ -510,6 +519,8 @@ class LPCMCIWrapper(AlgorithmWrapper):
             ci_test = ParCorr(significance='analytic')
         elif self.cond_ind_test == 'regression':
             ci_test = RegressionCI(significance='analytic')
+        elif self.cond_ind_test == 'ridge':
+            ci_test = RegressionCI(significance='analytic', regression_type='ridge', ridge_alpha=0.01)
         elif self.cond_ind_test == 'cmiknn':
             ci_test = CMIknn(significance='shuffle_test')
         elif self.cond_ind_test == 'gpdc':
@@ -1250,4 +1261,3 @@ class TSFCIWrapper(AlgorithmWrapper):
                 summary_edges.append(Edge(name_i, name_j, "undirected", lags=sorted_lags))
         
         return summary_edges
-

@@ -16,6 +16,7 @@ Key difference from SVAR-FCI:
 import numpy as np
 import itertools
 from typing import List, Optional, Tuple, Set
+import sys
 
 # Import from svar_fci (reuse existing components)
 from svar_fci.graph import DynamicPAG, NULL, CIRCLE, ARROW, TAIL
@@ -148,6 +149,7 @@ class SVAR_GFCI:
         n = 0
         p = G.n_nodes
         changed = True
+        tests_run = 0
         
         while changed:
             if self.max_cond_size is not None and n > self.max_cond_size:
@@ -169,6 +171,7 @@ class SVAR_GFCI:
                     
                     found_sep = False
                     for S in itertools.combinations(adj_i_t, n):
+                        tests_run += 1
                         if self._indep(Z, i, j, S):
                             if self.verbose:
                                 print(f"    indep({G.node_label(i)}, {G.node_label(j)} | {len(S)} vars)")
@@ -177,11 +180,17 @@ class SVAR_GFCI:
                             changed = True
                             found_sep = True
                             break
-                    
+                        if self.verbose and tests_run % 1000 == 0:
+                            print(f"    ... skeleton tests run: {tests_run}")
+                            sys.stdout.flush()
+            
                     if found_sep:
                         continue
             
             n += 1
+        
+        if self.verbose:
+            print(f"SVAR-GFCI: Skeleton phase complete, tests run: {tests_run}")
     
     # =========================================================================
     # Step 10: Time orientation (REUSE from SVAR-FCI)
@@ -296,6 +305,7 @@ class SVAR_GFCI:
         n = 0
         p = G.n_nodes
         changed = True
+        tests_run = 0
         
         while changed:
             if self.max_cond_size is not None and n > self.max_cond_size:
@@ -320,6 +330,7 @@ class SVAR_GFCI:
                     
                     found_sep = False
                     for S in itertools.combinations(P_union, n):
+                        tests_run += 1
                         if self._indep(Z, i, j, S):
                             if self.verbose:
                                 print(f"    PDS indep({G.node_label(i)}, {G.node_label(j)} | {len(S)} vars)")
@@ -328,11 +339,17 @@ class SVAR_GFCI:
                             changed = True
                             found_sep = True
                             break
+                        if self.verbose and tests_run % 1000 == 0:
+                            print(f"    ... PDS tests run: {tests_run}")
+                            sys.stdout.flush()
                     
                     if found_sep:
                         continue
             
             n += 1
+        
+        if self.verbose:
+            print(f"SVAR-GFCI: PDS phase complete, tests run: {tests_run}")
     
     # =========================================================================
     # Main fit method (Algorithm 3.2)
@@ -438,8 +455,9 @@ class SVAR_GFCI:
         # =====================================================================
         if self.verbose:
             print("\n=== Step 14: Apply R1-R10 Rules ===")
+            sys.stdout.flush()
         
-        apply_rules(P)
+        apply_rules(P, verbose=self.verbose)
         
         # =====================================================================
         # Step 15: Return P

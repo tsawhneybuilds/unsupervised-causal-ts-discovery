@@ -1,19 +1,10 @@
 {
   "algorithm_name": "GES(local_score_BIC)",
   "safe_name": "GES_local_score_BIC_",
-  "elapsed_time": 0.8811089992523193,
-  "metrics": {
-    "adj_precision": 0.29545454545454547,
-    "adj_recall": 0.6842105263157895,
-    "f1_adj": 0.41269841269841273,
-    "arrow_precision": NaN,
-    "arrow_recall": 0.0,
-    "f1_arrow": NaN,
-    "shd": 50.0
-  },
-  "error": null,
-  "graph_path": "results/monetary_longrun/graphs/graph_GES_local_score_BIC_.txt",
-  "graph_json_path": "results/monetary_longrun/graphs/graph_GES_local_score_BIC_.json",
-  "edges": 44,
-  "created_at": "2025-12-04T17:26:55.664061Z"
+  "elapsed_time": 6.985664367675781e-05,
+  "metrics": {},
+  "error": "No module named 'causallearn'",
+  "graph_path": null,
+  "edges": 0,
+  "created_at": "2025-12-06T03:46:41.013717Z"
 }

@@ -1,0 +1,10 @@
+{
+  "algorithm_name": "FCI(\u03b1=0.05)",
+  "safe_name": "FCI_0.05_",
+  "elapsed_time": 7.414817810058594e-05,
+  "metrics": {},
+  "error": "No module named 'causallearn'",
+  "graph_path": null,
+  "edges": 0,
+  "created_at": "2025-12-06T03:46:41.013090Z"
+}
